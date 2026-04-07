@@ -1,0 +1,1699 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Previanest — Ficha Pré-Anestésica</title>
+
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    :root {
+      --navy:#172C57; --teal:#0A7F99; --blue:#2167B3;
+      --red:#B81C24; --amber:#C76608; --green:#1A854F;
+      --gray:#6B7585; --border:#CBD9EB; --row:#F2F6FF; --bg:#F0F4FA;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:#1a1a2e;min-height:100vh}
+
+    /* ── Header ── */
+    header{background:var(--navy);color:#fff;padding:14px 20px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+    .logo-row{display:flex;align-items:center;gap:12px;max-width:700px;margin:0 auto}
+    .logo-circle{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:17px;flex-shrink:0}
+    header h1{font-size:15px;font-weight:700;letter-spacing:.5px}
+    header p{font-size:10px;opacity:.6;margin-top:2px}
+
+    /* ── Progress ── */
+    .progress-wrap{background:#fff;border-bottom:1px solid var(--border);padding:10px 20px;position:sticky;top:66px;z-index:99}
+    .progress-inner{max-width:700px;margin:0 auto}
+    .dots{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px}
+    .dot{width:26px;height:26px;border-radius:50%;background:var(--border);color:var(--gray);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;cursor:default}
+    .dot.active{background:var(--teal);color:#fff}
+    .dot.done{background:var(--navy);color:#fff}
+    .step-label{font-size:11px;color:var(--gray);font-weight:500}
+
+    /* ── Main layout ── */
+    main{max-width:700px;margin:0 auto;padding:20px 16px 120px}
+    .step{display:none}
+    .step.active{display:block}
+
+    /* ── Section card ── */
+    .sec-head{background:var(--navy);color:#fff;padding:13px 16px;border-radius:10px 10px 0 0;display:flex;align-items:center;gap:10px}
+    .sec-num{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0}
+    .sec-head h2{font-size:13px;font-weight:700;letter-spacing:.4px}
+    .sec-body{background:#fff;border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:20px;margin-bottom:16px}
+
+    /* ── Fields ── */
+    .field{margin-bottom:16px}
+    .field label{display:block;font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+    .field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-family:inherit;color:#1a1a2e;background:#fff;transition:border-color .2s;-webkit-appearance:none;appearance:none}
+    .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(10,127,153,.1)}
+    .field.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .field.row3{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:end}
+    textarea{min-height:78px;resize:vertical}
+    select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M0 0l6 8 6-8z' fill='%236B7585'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+    .hint{font-size:11px;color:var(--gray);margin-top:4px}
+    .required{color:var(--red)}
+
+    /* ── Button groups ── */
+    .btn-group{display:flex;gap:8px;flex-wrap:wrap}
+    .btn-op{padding:8px 16px;border:1.5px solid var(--border);border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;background:#fff;color:#444;transition:all .15s;-webkit-appearance:none}
+    .btn-op.sel{background:var(--navy);border-color:var(--navy);color:#fff}
+    .btn-op.sel-teal{background:var(--teal);border-color:var(--teal);color:#fff}
+
+    /* ── Sim/Não ── */
+    .sim-nao{display:flex;gap:8px}
+    .sim-nao button{flex:1;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;background:#fff;transition:all .15s;-webkit-appearance:none}
+    .btn-sim.on{background:var(--green);border-color:var(--green);color:#fff}
+    .btn-nao.on{background:var(--gray);border-color:var(--gray);color:#fff}
+
+    /* ── Checkboxes ── */
+    .chk-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    @media(max-width:480px){.chk-grid{grid-template-columns:1fr}}
+    .chk-item{display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s;background:#fff;user-select:none}
+    .chk-item.on{border-color:var(--teal);background:rgba(10,127,153,.06)}
+    .chk-box{width:18px;height:18px;border:2px solid var(--border);border-radius:4px;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;transition:all .15s;font-size:11px;font-weight:700;color:#fff}
+    .chk-item.on .chk-box{background:var(--teal);border-color:var(--teal)}
+    .chk-txt{font-size:13px;line-height:1.35}
+    .cat-lbl{font-size:12px;font-weight:700;color:var(--navy);margin:14px 0 6px;display:flex;align-items:center;gap:5px}
+    .cat-lbl:first-child{margin-top:0}
+
+    /* ── Alert box ── */
+    .alert-box{border-radius:8px;padding:11px 13px;font-size:13px;margin:10px 0;line-height:1.5}
+    .alert-info{background:#EFF6FF;border:1px solid #BFDBFE;color:#1e40af}
+    .alert-warn{background:#FFFBEB;border:1px solid #FDE68A;color:#92400e}
+    .alert-danger{background:#FEF2F2;border:1px solid #FECACA;color:#991b1b}
+
+    /* ── Medication cards ── */
+    .med-card{background:var(--row);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px;position:relative}
+    .med-card .rm{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--gray);cursor:pointer;font-size:20px;line-height:1}
+    .med-card .field{margin-bottom:10px}
+    .med-card .field:last-child{margin-bottom:0}
+    .med-card .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    #add-med-btn{width:100%;padding:10px;border:1.5px dashed var(--border);border-radius:8px;background:#fff;color:var(--teal);font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;transition:all .2s}
+    #add-med-btn:hover{border-color:var(--teal);background:rgba(10,127,153,.04)}
+
+    /* ── File upload ── */
+    .file-drop{border:2px dashed var(--border);border-radius:10px;padding:28px;text-align:center;cursor:pointer;transition:all .2s;background:var(--row)}
+    .file-drop:hover{border-color:var(--teal);background:rgba(10,127,153,.04)}
+    .file-drop p{font-size:14px;color:var(--gray);margin-top:6px}
+    .file-drop .icon{font-size:32px}
+    .file-list{margin-top:10px}
+    .file-item{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;font-size:13px}
+    .file-item span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .file-item .rm-file{cursor:pointer;color:var(--gray);flex-shrink:0}
+
+    /* ── Declaration checkbox ── */
+    .decl-wrap{display:flex;gap:12px;align-items:flex-start;padding:14px;background:var(--row);border:1.5px solid var(--border);border-radius:8px;cursor:pointer}
+    .decl-box{width:22px;height:22px;border:2px solid var(--border);border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;transition:all .15s}
+    .decl-wrap.on .decl-box{background:var(--green);border-color:var(--green)}
+    .decl-txt{font-size:13px;line-height:1.5;color:#333}
+
+    /* ── Nav footer ── */
+    .nav-footer{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);padding:12px 20px;display:flex;gap:10px;z-index:100}
+    .nav-footer .inner{display:flex;gap:10px;max-width:700px;margin:0 auto;width:100%}
+    .btn{padding:12px 24px;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;border:none;transition:all .15s;-webkit-appearance:none}
+    .btn-primary{background:var(--teal);color:#fff;flex:1}
+    .btn-primary:hover{background:#0a6b7f}
+    .btn-primary:disabled{opacity:.45;cursor:not-allowed}
+    .btn-back{background:var(--bg);color:var(--gray);border:1.5px solid var(--border);padding:12px 18px}
+
+    /* ── Success ── */
+    .success-wrap{text-align:center;padding:40px 10px}
+    .success-icon{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--navy));display:flex;align-items:center;justify-content:center;font-size:38px;margin:0 auto 20px;color:#fff}
+    .success-wrap h2{font-size:22px;font-weight:800;color:var(--navy);margin-bottom:8px}
+    .success-wrap p{font-size:14px;color:var(--gray);line-height:1.6}
+    .success-tag{display:inline-block;margin-top:14px;padding:8px 18px;background:rgba(10,127,153,.1);border:1px solid var(--teal);border-radius:20px;color:var(--teal);font-weight:700;font-size:13px}
+
+    /* ── Loading overlay ── */
+    #loading-overlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,.92);z-index:999;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+    .spinner{width:46px;height:46px;border:4px solid var(--border);border-top-color:var(--teal);border-radius:50%;animation:spin .75s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    #loading-msg{font-size:14px;font-weight:600;color:var(--navy)}
+    #error-msg{display:none;background:#FEF2F2;border:1px solid #FECACA;color:#991b1b;padding:12px 16px;border-radius:8px;font-size:13px;margin-top:10px}
+
+    .divider{border:none;border-top:1px solid var(--border);margin:14px 0}
+    .cond-wrap{display:none}
+    .cond-wrap.show{display:block}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-row">
+    <div class="logo-circle">P</div>
+    <div>
+      <h1>FICHA PRÉ-ANESTÉSICA</h1>
+      <p>Previanest — Avaliação Pré-Operatória Digital</p>
+    </div>
+  </div>
+</header>
+
+<div class="progress-wrap">
+  <div class="progress-inner">
+    <div class="dots" id="dots"></div>
+    <div class="step-label" id="step-label"></div>
+  </div>
+</div>
+
+<main>
+
+<!-- ═══════════════════════════════ STEP 0 — MÉDICO ═══════════════════════════════ -->
+<div class="step active" id="s0">
+  <div class="sec-head"><div class="sec-num">👨‍⚕️</div><h2>IDENTIFICAÇÃO DO MÉDICO</h2></div>
+  <div class="sec-body">
+    <div class="alert-box alert-info">
+      Digite o CRM do seu médico anestesiologista. Ele receberá sua ficha diretamente no aplicativo Previanest.
+    </div>
+    <div class="field">
+      <label>Tipo de vínculo <span class="required">*</span></label>
+      <div class="btn-group">
+        <button class="btn-op sel" id="tipo-crm" onclick="selectTipoId('crm')">CRM do médico</button>
+        <button class="btn-op" id="tipo-inst" onclick="selectTipoId('instituicao')">Código da instituição</button>
+      </div>
+    </div>
+    <div id="crm-wrap">
+      <div class="field row3">
+        <div>
+          <label>UF <span class="required">*</span></label>
+          <select id="uf-medico">
+            <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option>
+            <option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option>
+            <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
+            <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
+            <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option>
+            <option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option>
+            <option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option>
+            <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
+            <option value="SP" selected>SP</option><option value="SE">SE</option><option value="TO">TO</option>
+          </select>
+        </div>
+        <div>
+          <label>Número do CRM <span class="required">*</span></label>
+          <input type="text" id="crm-medico" placeholder="Ex: 123456" inputmode="numeric">
+        </div>
+      </div>
+    </div>
+    <div id="inst-wrap" style="display:none">
+      <div class="field">
+        <label>Código da instituição <span class="required">*</span></label>
+        <input type="text" id="cod-inst" placeholder="Código fornecido pela instituição">
+      </div>
+    </div>
+    <div id="s0-error" class="alert-box alert-danger" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ STEP 1 — IDENTIFICAÇÃO ═══════════════════════════════ -->
+<div class="step" id="s1">
+  <div class="sec-head"><div class="sec-num">01</div><h2>IDENTIFICAÇÃO DO PACIENTE</h2></div>
+  <div class="sec-body">
+    <div class="field">
+      <label>Nome completo <span class="required">*</span></label>
+      <input type="text" id="nome" placeholder="Nome completo" autocomplete="name">
+    </div>
+    <div class="field row2">
+      <div>
+        <label>Data de nascimento <span class="required">*</span></label>
+        <input type="text" id="data-nasc" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric">
+      </div>
+      <div>
+        <label>Sexo <span class="required">*</span></label>
+        <div class="btn-group" style="margin-top:0">
+          <button class="btn-op" onclick="selectSexo('Masculino')">Masculino</button>
+          <button class="btn-op" onclick="selectSexo('Feminino')">Feminino</button>
+          <button class="btn-op" onclick="selectSexo('Outro')">Outro</button>
+        </div>
+      </div>
+    </div>
+    <div class="field row2">
+      <div>
+        <label>Peso (kg) <span class="required">*</span></label>
+        <input type="text" id="peso" placeholder="Ex: 72" inputmode="decimal">
+      </div>
+      <div>
+        <label>Altura (cm) <span class="required">*</span></label>
+        <input type="text" id="altura" placeholder="Ex: 170" inputmode="decimal">
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="field">
+      <label>Quem está preenchendo? <span class="required">*</span></label>
+      <div class="btn-group">
+        <button class="btn-op sel" onclick="selectInformante('paciente')">O próprio paciente</button>
+        <button class="btn-op" onclick="selectInformante('responsavel')">Responsável</button>
+      </div>
+    </div>
+    <div class="cond-wrap" id="resp-wrap">
+      <div class="field">
+        <label>Nome do responsável <span class="required">*</span></label>
+        <input type="text" id="resp-nome" placeholder="Nome completo do responsável">
+      </div>
+      <div class="field">
+        <label>Relação com o paciente <span class="required">*</span></label>
+        <div class="btn-group">
+          <button class="btn-op" onclick="selectRelacao('Pai')">Pai</button>
+          <button class="btn-op" onclick="selectRelacao('Mãe')">Mãe</button>
+          <button class="btn-op" onclick="selectRelacao('Filho/Filha')">Filho/Filha</button>
+          <button class="btn-op" onclick="selectRelacao('Cônjuge')">Cônjuge</button>
+          <button class="btn-op" onclick="selectRelacao('Tutor')">Tutor legal</button>
+          <button class="btn-op" onclick="selectRelacao('Outro')">Outro</button>
+        </div>
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="field">
+      <label>Contato de emergência</label>
+      <input type="text" id="emerg-nome" placeholder="Nome do contato" autocomplete="name">
+    </div>
+    <div class="field">
+      <label>Telefone do contato de emergência</label>
+      <input type="tel" id="emerg-tel" placeholder="(11) 99999-9999" autocomplete="tel">
+    </div>
+    <hr class="divider">
+    <div class="field">
+      <label>Procedimento previsto <span class="required">*</span></label>
+      <div class="btn-group" id="proc-group">
+        <button class="btn-op" onclick="selectProc('Exames e Procedimentos')">Exames e Procedimentos</button>
+        <button class="btn-op" onclick="selectProc('Cirurgias por Vídeo')">Cirurgias por Vídeo</button>
+        <button class="btn-op" onclick="selectProc('Membros Inferiores')">Membros Inferiores</button>
+        <button class="btn-op" onclick="selectProc('Abdômen Baixo')">Abdômen Baixo</button>
+        <button class="btn-op" onclick="selectProc('Abdômen Alto')">Abdômen Alto</button>
+        <button class="btn-op" onclick="selectProc('Membros Superiores')">Membros Superiores</button>
+        <button class="btn-op" onclick="selectProc('Cabeça e Pescoço')">Cabeça e Pescoço</button>
+        <button class="btn-op" onclick="selectProc('Outro')">Outro</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Descreva o procedimento (opcional)</label>
+      <input type="text" id="proc-nome" placeholder="Ex: Colecistectomia videolaparoscópica">
+    </div>
+    <div id="s1-error" class="alert-box alert-danger" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ STEP 2 — HISTÓRICO ═══════════════════════════════ -->
+<div class="step" id="s2">
+  <div class="sec-head"><div class="sec-num">02</div><h2>HISTÓRICO CIRÚRGICO E ANESTÉSICO</h2></div>
+  <div class="sec-body">
+    <div class="field">
+      <label>Já passou por alguma cirurgia anteriormente?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="toggle('teveCircurgia', true, 'cirug-wrap')">Sim</button>
+        <button class="btn-nao on" onclick="toggle('teveCircurgia', false, 'cirug-wrap')">Não</button>
+      </div>
+    </div>
+    <div class="cond-wrap" id="cirug-wrap">
+      <div class="field">
+        <label>Descreva as cirurgias realizadas</label>
+        <textarea id="desc-cirurgias" placeholder="Ex: Apendicectomia em 2015, retirada de vesícula em 2019..."></textarea>
+      </div>
+      <div class="field">
+        <label>Que tipo de anestesia foi usada?</label>
+        <div class="chk-grid" id="anest-tipos"></div>
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="field">
+      <label>Teve alguma complicação com anestesia?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="toggle('teveCompl', true, 'compl-wrap')">Sim</button>
+        <button class="btn-nao on" onclick="toggle('teveCompl', false, 'compl-wrap')">Não</button>
+      </div>
+    </div>
+    <div class="cond-wrap" id="compl-wrap">
+      <div class="field">
+        <label>Descreva a complicação</label>
+        <textarea id="desc-compl" placeholder="Ex: Náuseas intensas, reação alérgica, dificuldade para acordar..."></textarea>
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="field">
+      <label>Algum familiar direto teve complicação com anestesia?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="toggle('familiarCompl', true, 'familiar-wrap')">Sim</button>
+        <button class="btn-nao on" onclick="toggle('familiarCompl', false, 'familiar-wrap')">Não</button>
+      </div>
+    </div>
+    <div class="cond-wrap" id="familiar-wrap">
+      <div class="field">
+        <label>Descreva o ocorrido</label>
+        <textarea id="desc-familiar" placeholder="Ex: Hipertermia maligna em irmão durante cirurgia ortopédica..."></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ STEP 3 — MEDICAMENTOS ═══════════════════════════════ -->
+<div class="step" id="s3">
+  <div class="sec-head"><div class="sec-num">03</div><h2>MEDICAMENTOS EM USO</h2></div>
+  <div class="sec-body">
+    <div class="field">
+      <label>Está tomando algum medicamento regularmente?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="toggle('usaMed', true, 'meds-wrap')">Sim</button>
+        <button class="btn-nao on" onclick="toggle('usaMed', false, 'meds-wrap')">Não</button>
+      </div>
+    </div>
+    <div class="cond-wrap" id="meds-wrap">
+      <div id="meds-list"></div>
+      <button id="add-med-btn" onclick="addMed()">+ Adicionar medicamento</button>
+    </div>
+    <hr class="divider">
+    <div class="field">
+      <label>Usa vitaminas, suplementos ou fitoterápicos?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="toggle('usaSupl', true, 'supl-wrap')">Sim</button>
+        <button class="btn-nao on" onclick="toggle('usaSupl', false, 'supl-wrap')">Não</button>
+      </div>
+    </div>
+    <div class="cond-wrap" id="supl-wrap">
+      <div class="field">
+        <label>Quais suplementos?</label>
+        <textarea id="desc-supl" placeholder="Ex: Vitamina D, Ômega 3, Ginkgo Biloba..."></textarea>
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="field">
+      <label>Tem alergia a algum medicamento?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="toggle('alergiaMed', true, 'alerg-wrap')">Sim</button>
+        <button class="btn-nao on" onclick="toggle('alergiaMed', false, 'alerg-wrap')">Não</button>
+      </div>
+    </div>
+    <div class="cond-wrap" id="alerg-wrap">
+      <div class="alert-box alert-danger">⚠ Esta informação é crítica. Descreva com detalhes.</div>
+      <div class="field">
+        <label>Quais medicamentos e qual a reação?</label>
+        <textarea id="desc-alerg-med" placeholder="Ex: Dipirona (urticária), Penicilina (anafilaxia)..."></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ STEP 4 — CONDIÇÕES ═══════════════════════════════ -->
+<div class="step" id="s4">
+  <div class="sec-head"><div class="sec-num">04</div><h2>DOENÇAS E CONDIÇÕES DE SAÚDE</h2></div>
+  <div class="sec-body">
+    <p style="font-size:13px;color:var(--gray);margin-bottom:14px">
+      Marque todas as condições que você tem ou já teve. Selecione quantas quiser.
+    </p>
+    <div id="cond-list"></div>
+    <hr class="divider">
+    <div class="field">
+      <label>Outras condições não listadas acima</label>
+      <textarea id="outras-cond" placeholder="Ex: Síndrome de Marfan, Miastenia gravis..."></textarea>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ STEP 5 — HÁBITOS ═══════════════════════════════ -->
+<div class="step" id="s5">
+  <div class="sec-head"><div class="sec-num">05</div><h2>HÁBITOS E ESTILO DE VIDA</h2></div>
+  <div class="sec-body">
+
+    <div class="field"><label>Fuma ou fumou nos últimos 2 anos?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="toggle('fumante', true, 'tabaco-wrap')">Sim</button>
+        <button class="btn-nao on" onclick="toggle('fumante', false, 'tabaco-wrap')">Não</button>
+      </div>
+    </div>
+    <div class="cond-wrap" id="tabaco-wrap">
+      <div class="field"><label>Quantidade e há quanto tempo</label>
+        <input type="text" id="desc-tabaco" placeholder="Ex: 1 maço/dia há 10 anos, parou há 6 meses"></div>
+    </div>
+    <hr class="divider">
+
+    <div class="field"><label>Consome bebidas alcoólicas?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="toggle('alcool', true, 'alcool-wrap')">Sim</button>
+        <button class="btn-nao on" onclick="toggle('alcool', false, 'alcool-wrap')">Não</button>
+      </div>
+    </div>
+    <div class="cond-wrap" id="alcool-wrap">
+      <div class="field"><label>Frequência e quantidade</label>
+        <input type="text" id="desc-alcool" placeholder="Ex: Final de semana, 2-3 doses"></div>
+    </div>
+    <hr class="divider">
+
+    <div class="field"><label>Usa ou já usou drogas ilícitas?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="toggle('drogas', true, 'drogas-wrap')">Sim</button>
+        <button class="btn-nao on" onclick="toggle('drogas', false, 'drogas-wrap')">Não</button>
+      </div>
+    </div>
+    <div class="cond-wrap" id="drogas-wrap">
+      <div class="field"><label>Quais e com que frequência</label>
+        <textarea id="desc-drogas" placeholder="Ex: Maconha ocasionalmente, cocaína (uso passado)"></textarea></div>
+    </div>
+    <hr class="divider">
+
+    <div class="field"><label>Pratica atividade física regularmente?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="toggle('ativFisica', true, 'ativ-wrap')">Sim</button>
+        <button class="btn-nao on" onclick="toggle('ativFisica', false, 'ativ-wrap')">Não</button>
+      </div>
+    </div>
+    <div class="cond-wrap" id="ativ-wrap">
+      <div class="field"><label>Qual atividade e frequência</label>
+        <input type="text" id="desc-ativ" placeholder="Ex: Corrida 3×/semana, musculação 5×/semana"></div>
+    </div>
+    <hr class="divider">
+
+    <div class="field"><label>Tem dificuldade para dormir ou apneia do sono?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="toggle('sono', true, 'sono-wrap')">Sim</button>
+        <button class="btn-nao on" onclick="toggle('sono', false, 'sono-wrap')">Não</button>
+      </div>
+    </div>
+    <div class="cond-wrap" id="sono-wrap">
+      <div class="field"><label>Descreva o distúrbio do sono</label>
+        <input type="text" id="desc-sono" placeholder="Ex: Apneia diagnosticada, uso de CPAP"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ STEP 6 — SAÚDE FEMININA ═══════════════════════════════ -->
+<div class="step" id="s6">
+  <div class="sec-head"><div class="sec-num">06</div><h2>SAÚDE FEMININA</h2></div>
+  <div class="sec-body">
+
+    <div class="field"><label>Existe possibilidade de estar grávida?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="setState('possivelGravidez', true)">Sim</button>
+        <button class="btn-nao on" onclick="setState('possivelGravidez', false)">Não</button>
+      </div>
+    </div>
+    <hr class="divider">
+
+    <div class="field"><label>Está amamentando?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="setState('amamentando', true)">Sim</button>
+        <button class="btn-nao on" onclick="setState('amamentando', false)">Não</button>
+      </div>
+    </div>
+    <hr class="divider">
+
+    <div class="field"><label>Usa anticoncepcional?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="setState('anticoncepcional', true)">Sim</button>
+        <button class="btn-nao on" onclick="setState('anticoncepcional', false)">Não</button>
+      </div>
+    </div>
+    <hr class="divider">
+
+    <div class="field"><label>Já atingiu a menopausa?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="toggleMenopausa(true)">Sim</button>
+        <button class="btn-nao on" onclick="toggleMenopausa(false)">Não</button>
+      </div>
+    </div>
+    <div class="cond-wrap" id="mens-wrap" style="display:block" >
+      <div class="field"><label>Data da última menstruação (se souber)</label>
+        <input type="text" id="ultima-mens" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ STEP 7 — PREPARAÇÃO ═══════════════════════════════ -->
+<div class="step" id="s7">
+  <div class="sec-head"><div class="sec-num">07</div><h2>PREPARAÇÃO PRÉ-OPERATÓRIA</h2></div>
+  <div class="sec-body">
+
+    <div class="field"><label>Sabe a data da cirurgia?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="toggle('dataCirurgKnown', true, 'data-cir-wrap')">Sim</button>
+        <button class="btn-nao on" onclick="toggle('dataCirurgKnown', false, 'data-cir-wrap')">Não</button>
+      </div>
+    </div>
+    <div class="cond-wrap" id="data-cir-wrap">
+      <div class="field"><label>Data prevista</label>
+        <input type="text" id="data-cirurgia" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric"></div>
+    </div>
+    <hr class="divider">
+
+    <div class="field"><label>Usa prótese dentária?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="setState('proteseDentaria', true)">Sim</button>
+        <button class="btn-nao on" onclick="setState('proteseDentaria', false)">Não</button>
+      </div>
+    </div>
+    <hr class="divider">
+
+    <div class="field"><label>Tem piercing ou implante metálico no corpo?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="setState('piercingImplante', true)">Sim</button>
+        <button class="btn-nao on" onclick="setState('piercingImplante', false)">Não</button>
+      </div>
+    </div>
+    <hr class="divider">
+
+    <div class="field"><label>Tem alergia ao látex (borracha)?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="setState('alergiaLatex', true)">Sim — ⚠ Informar equipe</button>
+        <button class="btn-nao on" onclick="setState('alergiaLatex', false)">Não</button>
+      </div>
+    </div>
+    <hr class="divider">
+
+    <div class="field"><label>Tem alergia alimentar?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="toggle('alergiaAlim', true, 'alim-wrap')">Sim</button>
+        <button class="btn-nao on" onclick="toggle('alergiaAlim', false, 'alim-wrap')">Não</button>
+      </div>
+    </div>
+    <div class="cond-wrap" id="alim-wrap">
+      <div class="field"><label>Quais alimentos e reação</label>
+        <input type="text" id="desc-alim" placeholder="Ex: Amendoim (anafilaxia), frutos do mar (urticária)"></div>
+    </div>
+    <hr class="divider">
+
+    <div class="field"><label>Terá um acompanhante adulto para levá-lo a casa?</label>
+      <div class="sim-nao">
+        <button class="btn-sim" onclick="setState('acompanhante', true)">Sim</button>
+        <button class="btn-nao on" onclick="setState('acompanhante', false)">Ainda não confirmado</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ STEP 8 — DOCUMENTOS ═══════════════════════════════ -->
+<div class="step" id="s8">
+  <div class="sec-head"><div class="sec-num">08</div><h2>DOCUMENTOS COMPLEMENTARES</h2></div>
+  <div class="sec-body">
+    <div class="alert-box alert-info">
+      Opcional — envie exames, laudos, receitas ou documentos que o médico deva conhecer antes da anestesia.
+    </div>
+    <div class="file-drop" onclick="document.getElementById('file-input').click()">
+      <div class="icon">📎</div>
+      <strong>Toque para selecionar arquivos</strong>
+      <p>PDF, imagens, documentos (até 10 arquivos)</p>
+    </div>
+    <input type="file" id="file-input" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.heic" style="display:none">
+    <div class="file-list" id="file-list"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ STEP 9 — CONFIRMAÇÃO ═══════════════════════════════ -->
+<div class="step" id="s9">
+  <div class="sec-head"><div class="sec-num">09</div><h2>OBSERVAÇÕES E CONFIRMAÇÃO</h2></div>
+  <div class="sec-body">
+    <div class="field">
+      <label>Observações livres</label>
+      <textarea id="obs-livres" placeholder="Informe ao médico qualquer outra informação que achar relevante (ansiedade, alergias não listadas, dúvidas sobre a anestesia...)" style="min-height:100px"></textarea>
+    </div>
+    <hr class="divider">
+    <div style="margin-bottom:6px;font-size:13px;font-weight:700;color:var(--navy)">Resumo da ficha</div>
+    <div id="resumo" style="background:var(--row);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;line-height:1.8;margin-bottom:16px"></div>
+    <hr class="divider">
+    <div class="decl-wrap" id="decl-wrap" onclick="toggleDecl()">
+      <div class="decl-box" id="decl-box"></div>
+      <div class="decl-txt">
+        Li todas as minhas respostas, confirmo que são verdadeiras e estou ciente de que estas informações serão usadas exclusivamente para minha segurança durante a anestesia.
+      </div>
+    </div>
+    <div id="s9-error" class="alert-box alert-danger" style="display:none;margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ STEP SUCCESS ═══════════════════════════════ -->
+<div class="step" id="s-success">
+  <div class="success-wrap">
+    <div class="success-icon">✓</div>
+    <h2>Ficha enviada com sucesso!</h2>
+    <p>Sua ficha pré-anestésica foi entregue ao médico com segurança.<br>Ele a receberá diretamente no aplicativo Previanest.</p>
+    <div class="success-tag" id="success-tag"></div>
+    <div style="margin-top:24px;font-size:12px;color:var(--gray)">
+      Este documento é confidencial e protegido pela LGPD (Lei nº 13.709/2018).
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- Nav footer -->
+<div class="nav-footer" id="nav-footer">
+  <div class="inner">
+    <button class="btn btn-back" id="btn-back" onclick="prevStep()" style="display:none">← Voltar</button>
+    <button class="btn btn-primary" id="btn-next" onclick="nextStep()">Próximo →</button>
+  </div>
+</div>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div id="loading-msg">Aguarde...</div>
+</div>
+
+<!-- ═══════════════════════════════ SCRIPTS ═══════════════════════════════ -->
+<script>
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FIREBASE CONFIG
+// ─────────────────────────────────────────────────────────────────────────────
+// ATENÇÃO: você precisa registrar um "Web App" no Firebase Console e
+// substituir "SEU_WEB_APP_ID" pelo valor de appId gerado.
+// Console: https://console.firebase.google.com → Previanest → ⚙ → Adicionar app → Web
+const firebaseConfig = {
+  apiKey:            "AIzaSyBHiBSTsKaxrhl_PpRcxaZmZpk6X4uH_W4",
+  authDomain:        "previanest.firebaseapp.com",
+  projectId:         "previanest",
+  storageBucket:     "previanest.firebasestorage.app",
+  messagingSenderId: "736869897263",
+  appId:             "SEU_WEB_APP_ID"   // ← substituir
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth    = firebase.auth();
+const db      = firebase.firestore();
+const storage = firebase.storage();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
+let currentStep = 0;
+const STEPS = ['s0','s1','s2','s3','s4','s5','s6','s7','s8','s9'];
+const STEP_LABELS = [
+  'Médico', 'Identificação', 'Histórico', 'Medicamentos',
+  'Condições', 'Hábitos', 'Saúde Feminina', 'Preparação', 'Documentos', 'Confirmação'
+];
+
+let boolState = {
+  teveCircurgia: false, teveCompl: false, familiarCompl: false,
+  usaMed: false, usaSupl: false, alergiaMed: false,
+  fumante: false, alcool: false, drogas: false, ativFisica: false, sono: false,
+  possivelGravidez: false, amamentando: false, anticoncepcional: false, menopausa: false,
+  dataCirurgKnown: false, proteseDentaria: false, piercingImplante: false,
+  alergiaLatex: false, alergiaAlim: false, acompanhante: false
+};
+let sexoVal = '';
+let informanteVal = 'paciente';
+let relacaoVal = '';
+let procVal = '';
+let tipoIdVal = 'crm';
+let anestTipos = new Set();
+let condicoes = new Set();
+let medicamentos = [];
+let arquivos = [];
+let declConfirmed = false;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  buildDots();
+  buildAnestTipos();
+  buildCondList();
+  updateStep();
+  // Date mask
+  ['data-nasc','data-cirurgia','ultima-mens'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', e => { e.target.value = maskDate(e.target.value); });
+  });
+  // Phone mask
+  document.getElementById('emerg-tel')?.addEventListener('input', e => {
+    e.target.value = maskPhone(e.target.value);
+  });
+  // CRM numeric only
+  document.getElementById('crm-medico')?.addEventListener('input', e => {
+    e.target.value = e.target.value.replace(/\D/g,'');
+  });
+  // File input
+  document.getElementById('file-input').addEventListener('change', e => {
+    for (const f of e.target.files) addFile(f);
+    e.target.value = '';
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DOTS
+// ─────────────────────────────────────────────────────────────────────────────
+function buildDots() {
+  const c = document.getElementById('dots');
+  STEPS.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot';
+    d.id = 'dot-' + i;
+    d.textContent = i + 1;
+    c.appendChild(d);
+  });
+}
+
+function updateDots() {
+  STEPS.forEach((_, i) => {
+    const d = document.getElementById('dot-' + i);
+    d.className = 'dot' + (i === currentStep ? ' active' : i < currentStep ? ' done' : '');
+  });
+  document.getElementById('step-label').textContent =
+    `Passo ${currentStep + 1} de ${STEPS.length} — ${STEP_LABELS[currentStep]}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NAVIGATION
+// ─────────────────────────────────────────────────────────────────────────────
+function updateStep() {
+  STEPS.forEach((id, i) => {
+    document.getElementById(id).classList.toggle('active', i === currentStep);
+  });
+  document.getElementById('s-success').classList.remove('active');
+  updateDots();
+  const isFirst = currentStep === 0;
+  const isLast  = currentStep === STEPS.length - 1;
+  document.getElementById('btn-back').style.display = isFirst ? 'none' : '';
+  document.getElementById('btn-next').textContent = isLast ? '📤 Enviar Ficha' : 'Próximo →';
+  if (currentStep === 9) buildResumo();
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function nextStep() {
+  if (!validateStep(currentStep)) return;
+  if (currentStep === STEPS.length - 1) { submitForm(); return; }
+  let next = currentStep + 1;
+  // Skip saúde feminina if not feminino
+  if (next === 6 && sexoVal !== 'Feminino') next = 7;
+  if (next < STEPS.length) { currentStep = next; updateStep(); }
+}
+
+function prevStep() {
+  let prev = currentStep - 1;
+  if (prev === 6 && sexoVal !== 'Feminino') prev = 5;
+  if (prev >= 0) { currentStep = prev; updateStep(); }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VALIDATION
+// ─────────────────────────────────────────────────────────────────────────────
+function validateStep(step) {
+  hideErr('s0-error'); hideErr('s1-error'); hideErr('s9-error');
+  if (step === 0) {
+    if (tipoIdVal === 'crm') {
+      const crm = document.getElementById('crm-medico').value.trim();
+      if (!crm) { showErr('s0-error', 'Digite o número do CRM do médico.'); return false; }
+    } else {
+      const cod = document.getElementById('cod-inst').value.trim();
+      if (!cod) { showErr('s0-error', 'Digite o código da instituição.'); return false; }
+    }
+  }
+  if (step === 1) {
+    const nome = document.getElementById('nome').value.trim();
+    if (nome.length < 3) { showErr('s1-error', 'Digite o nome completo do paciente.'); return false; }
+    if (!sexoVal) { showErr('s1-error', 'Selecione o sexo.'); return false; }
+    const peso = document.getElementById('peso').value.trim();
+    const alt  = document.getElementById('altura').value.trim();
+    if (!peso || parseFloat(peso) <= 0) { showErr('s1-error', 'Digite o peso.'); return false; }
+    if (!alt  || parseFloat(alt)  <= 0) { showErr('s1-error', 'Digite a altura.'); return false; }
+    if (!procVal) { showErr('s1-error', 'Selecione o procedimento previsto.'); return false; }
+    if (informanteVal === 'responsavel') {
+      if (!document.getElementById('resp-nome').value.trim()) {
+        showErr('s1-error', 'Digite o nome do responsável.'); return false;
+      }
+      if (!relacaoVal) { showErr('s1-error', 'Selecione a relação do responsável.'); return false; }
+    }
+  }
+  if (step === 9) {
+    if (!declConfirmed) { showErr('s9-error', 'Confirme a declaração de veracidade para enviar.'); return false; }
+  }
+  return true;
+}
+
+function showErr(id, msg) { const e = document.getElementById(id); if(e){e.textContent=msg;e.style.display='block';} }
+function hideErr(id) { const e = document.getElementById(id); if(e) e.style.display='none'; }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UI HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+function selectTipoId(tipo) {
+  tipoIdVal = tipo;
+  document.getElementById('tipo-crm').classList.toggle('sel', tipo === 'crm');
+  document.getElementById('tipo-inst').classList.toggle('sel', tipo === 'instituicao');
+  document.getElementById('crm-wrap').style.display = tipo === 'crm' ? '' : 'none';
+  document.getElementById('inst-wrap').style.display = tipo === 'instituicao' ? '' : 'none';
+}
+
+function selectSexo(val) {
+  sexoVal = val;
+  document.querySelectorAll('#s1 .btn-group .btn-op').forEach(b => {
+    b.classList.toggle('sel', b.textContent === val);
+  });
+}
+
+function selectInformante(val) {
+  informanteVal = val;
+  document.querySelectorAll('#s1 .field:nth-child(5) .btn-op').forEach(b => {
+    b.classList.toggle('sel', b.getAttribute('onclick')?.includes(val));
+  });
+  document.getElementById('resp-wrap').classList.toggle('show', val === 'responsavel');
+}
+
+function selectRelacao(val) {
+  relacaoVal = val;
+  document.querySelectorAll('#resp-wrap .btn-op').forEach(b => {
+    b.classList.toggle('sel', b.textContent.trim() === val);
+  });
+}
+
+function selectProc(val) {
+  procVal = val;
+  document.querySelectorAll('#proc-group .btn-op').forEach(b => {
+    b.classList.toggle('sel', b.textContent.trim() === val);
+  });
+}
+
+function toggle(key, val, wrapId) {
+  boolState[key] = val;
+  const wrap = document.getElementById(wrapId);
+  if (wrap) wrap.classList.toggle('show', val);
+  // update sim/nao buttons
+  const parent = wrap?.previousElementSibling;
+  updateSimNao(parent?.querySelector('.sim-nao'), val);
+}
+
+function setState(key, val) {
+  boolState[key] = val;
+  // find closest sim-nao
+  event?.currentTarget?.closest('.field')?.querySelectorAll('.sim-nao button')?.forEach(b => {
+    const isSim = b.classList.contains('btn-sim');
+    b.classList.toggle('on', isSim ? val : !val);
+  });
+}
+
+function updateSimNao(simNaoEl, val) {
+  if (!simNaoEl) return;
+  simNaoEl.querySelector('.btn-sim')?.classList.toggle('on', val);
+  simNaoEl.querySelector('.btn-nao')?.classList.toggle('on', !val);
+}
+
+function toggleMenopausa(val) {
+  boolState.menopausa = val;
+  document.getElementById('mens-wrap').classList.toggle('show', !val);
+  event?.currentTarget?.closest('.field')?.querySelectorAll('.sim-nao button')?.forEach(b => {
+    b.classList.toggle('on', b.classList.contains('btn-sim') ? val : !val);
+  });
+}
+
+function toggleDecl() {
+  declConfirmed = !declConfirmed;
+  document.getElementById('decl-wrap').classList.toggle('on', declConfirmed);
+  document.getElementById('decl-box').textContent = declConfirmed ? '✓' : '';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ANESTESIA TIPOS
+// ─────────────────────────────────────────────────────────────────────────────
+function buildAnestTipos() {
+  const tipos = [
+    { nome: 'Anestesia Geral',    detalhe: 'Dormi e só acordei na recuperação' },
+    { nome: 'Raqui ou Peridural', detalhe: 'Anestesia na coluna' },
+    { nome: 'Sedação',            detalhe: null },
+    { nome: 'Local',              detalhe: null },
+    { nome: 'Não sei informar',   detalhe: null },
+  ];
+  const c = document.getElementById('anest-tipos');
+  tipos.forEach(t => {
+    const d = document.createElement('div');
+    d.className = 'chk-item';
+    d.innerHTML = `<div class="chk-box"></div><div class="chk-txt"><strong>${t.nome}</strong>${t.detalhe ? '<br><span style="color:var(--gray);font-size:11px">' + t.detalhe + '</span>' : ''}</div>`;
+    d.onclick = () => {
+      if (anestTipos.has(t.nome)) anestTipos.delete(t.nome);
+      else anestTipos.add(t.nome);
+      d.classList.toggle('on', anestTipos.has(t.nome));
+      d.querySelector('.chk-box').textContent = anestTipos.has(t.nome) ? '✓' : '';
+    };
+    c.appendChild(d);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONDIÇÕES DE SAÚDE
+// ─────────────────────────────────────────────────────────────────────────────
+const CATEGORIAS = [
+  { titulo: 'Coração e circulação', items: [
+    'Hipertensão (pressão alta)', 'Infarto (ataque cardíaco)',
+    'Insuficiência cardíaca (coração fraco, cansa fácil)', 'Arritmia (coração batendo irregular)',
+    'Angina (dor no peito durante esforço)', 'Marca-passo ou desfibrilador implantado',
+    'Doença nas veias ou artérias (varizes graves, obstrução)'
+  ]},
+  { titulo: 'Cérebro e sistema nervoso', items: [
+    'AVC (derrame cerebral)', 'AIT (mini-derrame transitório)', 'Epilepsia (convulsões / ataques)',
+    'Doença de Parkinson', 'Esclerose múltipla ou outra doença neurológica'
+  ]},
+  { titulo: 'Pulmões e respiração', items: [
+    'Asma', 'Bronquite crônica / DPOC (falta de ar constante)',
+    'Apneia do sono (para de respirar ao dormir / ronco forte)', 'Tuberculose pulmonar'
+  ]},
+  { titulo: 'Hormônios e metabolismo', items: [
+    'Diabetes (açúcar alto no sangue)', 'Hipotireoidismo (tireoide lenta — cansaço, inchaço, friagem)',
+    'Hipertireoidismo (tireoide acelerada — agitação, palpitação)', 'Obesidade ou Sobrepeso'
+  ]},
+  { titulo: 'Fígado, rins e digestão', items: [
+    'Refluxo / azia frequente', 'Hepatite ou cirrose (doença no fígado)',
+    'Insuficiência renal (problema nos rins)', 'Doença inflamatória intestinal (Crohn, retocolite)'
+  ]},
+  { titulo: 'Sangue e imunidade', items: [
+    'Anemia', 'Hemofilia ou sangramento excessivo',
+    'Trombose ou embolia pulmonar', 'Doenças autoimunes (lúpus, artrite reumatoide, etc.)'
+  ]},
+  { titulo: 'Câncer', items: [
+    'Câncer ativo (em tratamento)', 'Câncer tratado / em remissão (últimos 5 anos)'
+  ]},
+  { titulo: 'Saúde mental e psiquiatria', items: [
+    'Depressão / Transtorno Bipolar', 'Esquizofrenia ou Psicose',
+    'Transtorno de Ansiedade Generalizada (ansiedade, ataques de pânico)',
+    'Outros transtornos psiquiátricos'
+  ]},
+];
+
+function buildCondList() {
+  const c = document.getElementById('cond-list');
+  CATEGORIAS.forEach(cat => {
+    const lbl = document.createElement('div');
+    lbl.className = 'cat-lbl';
+    lbl.textContent = cat.titulo;
+    c.appendChild(lbl);
+    const grid = document.createElement('div');
+    grid.className = 'chk-grid';
+    cat.items.forEach(item => {
+      const d = document.createElement('div');
+      d.className = 'chk-item';
+      d.innerHTML = `<div class="chk-box"></div><div class="chk-txt">${item}</div>`;
+      d.onclick = () => {
+        if (condicoes.has(item)) condicoes.delete(item);
+        else condicoes.add(item);
+        d.classList.toggle('on', condicoes.has(item));
+        d.querySelector('.chk-box').textContent = condicoes.has(item) ? '✓' : '';
+      };
+      grid.appendChild(d);
+    });
+    c.appendChild(grid);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MEDICAMENTOS
+// ─────────────────────────────────────────────────────────────────────────────
+function addMed() {
+  medicamentos.push({ id: genUUID(), nome: '', dosagem: '', frequencia: '' });
+  renderMeds();
+}
+
+function removeMed(idx) {
+  medicamentos.splice(idx, 1);
+  renderMeds();
+}
+
+function renderMeds() {
+  const c = document.getElementById('meds-list');
+  c.innerHTML = '';
+  medicamentos.forEach((m, i) => {
+    const d = document.createElement('div');
+    d.className = 'med-card';
+    d.innerHTML = `
+      <button class="rm" onclick="removeMed(${i})">×</button>
+      <div class="field"><label>Medicamento ${i+1}</label>
+        <input type="text" placeholder="Nome do medicamento" value="${escHtml(m.nome)}"
+          oninput="medicamentos[${i}].nome=this.value"></div>
+      <div class="row2">
+        <div class="field"><label>Dosagem</label>
+          <input type="text" placeholder="Ex: 50 mg" value="${escHtml(m.dosagem)}"
+            oninput="medicamentos[${i}].dosagem=this.value"></div>
+        <div class="field"><label>Frequência</label>
+          <input type="text" placeholder="Ex: 1×/dia" value="${escHtml(m.frequencia)}"
+            oninput="medicamentos[${i}].frequencia=this.value"></div>
+      </div>`;
+    c.appendChild(d);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ARQUIVOS
+// ─────────────────────────────────────────────────────────────────────────────
+function addFile(file) {
+  if (arquivos.length >= 10) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const tipo = file.type.startsWith('image/') ? 'imagem' : file.type === 'application/pdf' ? 'pdf' : 'outro';
+    arquivos.push({ nome: file.name, dados: e.target.result, tipo });
+    renderFiles();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function removeFile(idx) { arquivos.splice(idx, 1); renderFiles(); }
+
+function renderFiles() {
+  const c = document.getElementById('file-list');
+  c.innerHTML = '';
+  arquivos.forEach((f, i) => {
+    const d = document.createElement('div');
+    d.className = 'file-item';
+    const icon = f.tipo === 'imagem' ? '🖼️' : f.tipo === 'pdf' ? '📄' : '📎';
+    d.innerHTML = `<span>${icon}</span><span>${escHtml(f.nome)}</span><span class="rm-file" onclick="removeFile(${i})">✕</span>`;
+    c.appendChild(d);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RESUMO (step 9)
+// ─────────────────────────────────────────────────────────────────────────────
+function buildResumo() {
+  const nome = document.getElementById('nome').value.trim();
+  const nasc = document.getElementById('data-nasc').value;
+  const imc = calcIMC();
+  const linhas = [
+    `👤 <b>${nome || '—'}</b>`,
+    `🗓️ Nascimento: ${nasc || '—'}  ·  Sexo: ${sexoVal || '—'}`,
+    `⚖️ Peso: ${val('peso')} kg  ·  Altura: ${val('altura')} cm${imc ? '  ·  IMC: ' + imc.texto + ' (' + imc.cl + ')' : ''}`,
+    `🏥 Procedimento: ${procVal || '—'}`,
+    `💊 Medicamentos: ${boolState.usaMed ? medicamentos.length + ' cadastrado(s)' : 'Não usa'}`,
+    `🩺 Condições: ${condicoes.size > 0 ? condicoes.size + ' selecionada(s)' : 'Nenhuma selecionada'}`,
+    `📎 Documentos: ${arquivos.length > 0 ? arquivos.length + ' arquivo(s)' : 'Nenhum'}`,
+    boolState.alergiaMed ? `⚠️ Alergia a medicamentos declarada` : '',
+    boolState.alergiaLatex ? `⚠️ Alergia ao látex declarada` : '',
+    boolState.possivelGravidez ? `⚠️ Possível gravidez declarada` : '',
+  ].filter(Boolean);
+  document.getElementById('resumo').innerHTML = linhas.join('<br>');
+}
+
+function calcIMC() {
+  const p = parseFloat(val('peso')), a = parseFloat(val('altura')) / 100;
+  if (!p || !a) return null;
+  const v = p / (a * a);
+  let cl = '';
+  if (v < 18.5) cl = 'Abaixo do peso';
+  else if (v < 25) cl = 'Peso normal';
+  else if (v < 30) cl = 'Sobrepeso';
+  else if (v < 35) cl = 'Obesidade grau I';
+  else if (v < 40) cl = 'Obesidade grau II';
+  else cl = 'Obesidade grau III';
+  return { texto: v.toFixed(1), cl, valor: v };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PDF GENERATION (jsPDF)
+// ─────────────────────────────────────────────────────────────────────────────
+function gerarPDF(dados) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p', 'pt', 'a4');
+  const W = 595.28, mH = 36, mV = 38, cW = W - mH * 2;
+  let y = 0;
+
+  const navy = [23, 44, 87], teal = [10, 127, 153], gray = [107, 117, 133],
+        red = [184, 28, 36], green = [26, 133, 79], border = [203, 217, 235],
+        rowBg = [242, 246, 255];
+
+  function newPage() {
+    doc.addPage();
+    y = mV;
+    // page footer
+    doc.setDrawColor(...border); doc.setLineWidth(0.4);
+    doc.line(mH, 830, W - mH, 830);
+    doc.setFontSize(7); doc.setTextColor(...gray);
+    doc.text('Previanest — Ficha Pré-Anestésica  ·  Documento Confidencial', mH, 838);
+    doc.text(`Pág. ${doc.internal.getCurrentPageInfo().pageNumber}`, W - mH, 838, { align: 'right' });
+  }
+
+  function guard(need) { if (y + need > 820) newPage(); }
+
+  function hdrSection(num, title) {
+    guard(30);
+    y += 8;
+    doc.setFillColor(...navy);
+    doc.roundedRect(mH, y, cW, 24, 4, 4, 'F');
+    doc.setFillColor(...teal); doc.roundedRect(mH, y, 5, 24, 4, 4, 'F');
+    doc.setFontSize(9); doc.setTextColor(255, 255, 255); doc.setFont(undefined, 'bold');
+    doc.text(`${num}  ${title}`, mH + 14, y + 15);
+    doc.setFont(undefined, 'normal');
+    y += 30; doc.internal.pageRow = 0;
+  }
+
+  function row(label, value, bold) {
+    if (!value) return;
+    const lW = 150, vW = cW - lW - 10;
+    const lines = doc.splitTextToSize(String(value), vW);
+    const rH = Math.max(20, lines.length * 12 + 8);
+    guard(rH);
+    const rn = doc.internal.pageRow || 0;
+    if (rn % 2 === 0) {
+      doc.setFillColor(...rowBg); doc.rect(mH, y, cW, rH, 'F');
+    }
+    doc.internal.pageRow = rn + 1;
+    doc.setFontSize(7.5); doc.setTextColor(...gray); doc.setFont(undefined, 'normal');
+    doc.text(label.toUpperCase(), mH + 8, y + rH / 2 + 3);
+    doc.setFontSize(9); doc.setTextColor(50, 62, 89); doc.setFont(undefined, bold ? 'bold' : 'normal');
+    doc.text(lines, mH + lW + 8, y + rH / 2 + 3 - (lines.length - 1) * 6);
+    doc.setDrawColor(...border); doc.setLineWidth(0.3);
+    doc.line(mH + lW, y + 4, mH + lW, y + rH - 4);
+    doc.line(mH + 6, y + rH, mH + cW - 6, y + rH);
+    y += rH;
+  }
+
+  function alertRow(text, color) {
+    const lines = doc.splitTextToSize(text, cW - 26);
+    const bH = lines.length * 12 + 16;
+    guard(bH);
+    doc.setFillColor(color[0], color[1], color[2]);
+    doc.setFillAlpha ? doc.setFillAlpha(0.08) : null;
+    doc.roundedRect(mH, y, cW, bH, 5, 5, 'F');
+    doc.setFillColor(color[0], color[1], color[2]);
+    doc.roundedRect(mH, y, 5, bH, 5, 5, 'F');
+    doc.setFontSize(9); doc.setFont(undefined, 'bold'); doc.setTextColor(...color);
+    doc.text(lines, mH + 12, y + 12);
+    doc.setFont(undefined, 'normal');
+    y += bH + 6;
+  }
+
+  // ── HEADER ──
+  doc.setFillColor(...navy); doc.rect(0, 0, W, 80, 'F');
+  doc.setFillColor(...teal); doc.rect(0, 75, W, 5, 'F');
+  doc.setFontSize(16); doc.setFont(undefined, 'bold'); doc.setTextColor(255,255,255);
+  doc.text('FICHA PRÉ-ANESTÉSICA', mH + 52, 34);
+  doc.setFontSize(8.5); doc.setFont(undefined, 'normal'); doc.setTextColor(255,255,255);
+  doc.text('Previanest — Avaliação Pré-Operatória Digital', mH + 52, 50);
+  // Logo circle
+  doc.setFillColor(255,255,255); doc.setFillAlpha ? null : null;
+  doc.circle(mH + 22, 38, 19, 'S');
+  doc.setFontSize(16); doc.setFont(undefined, 'black'); doc.text('P', mH + 16, 45);
+  // Date right
+  const now = new Date();
+  doc.setFontSize(7.5); doc.setFont(undefined, 'normal'); doc.setTextColor(255,255,255);
+  doc.text('Data de emissão', W - mH - 150, 28);
+  doc.setFontSize(10); doc.setFont(undefined, 'bold');
+  doc.text(formatDate(now) + '  ' + formatTime(now), W - mH - 150, 42);
+  doc.setFontSize(6); doc.setFont(undefined, 'normal');
+  doc.text('CONFIDENCIAL — USO MÉDICO EXCLUSIVO', W - mH - 150, 58);
+
+  // Page 1 footer
+  y = 0; newPage(); y = 95;
+
+  // ── PATIENT CARD ──
+  doc.setFillColor(248, 250, 255); doc.roundedRect(mH, y, cW, 90, 8, 8, 'F');
+  doc.setDrawColor(...border); doc.setLineWidth(0.8); doc.roundedRect(mH, y, cW, 90, 8, 8, 'S');
+  doc.setFillColor(...navy); doc.roundedRect(mH, y, 6, 90, 8, 8, 'F');
+  doc.setFontSize(7); doc.setFont(undefined, 'bold'); doc.setTextColor(...teal);
+  doc.text('PACIENTE', mH + 15, y + 14);
+  doc.setFontSize(13); doc.setFont(undefined, 'bold'); doc.setTextColor(...navy);
+  doc.text(dados.nomeCompleto || 'Não informado', mH + 15, y + 28);
+  const imc = calcIMC();
+  const nascText = dados.dataNascimentoTexto || '—';
+  const idadeCalc = dados.nascimento ? `${calcAge(dados.nascimento)} anos` : '';
+  doc.setFontSize(9.5); doc.setFont(undefined, 'normal'); doc.setTextColor(51, 62, 89);
+  doc.text(`${nascText}  ·  ${idadeCalc}  ·  ${dados.sexo || '—'}`, mH + 15, y + 42);
+  doc.setFontSize(8.5); doc.setTextColor(...gray);
+  doc.text(`Informante: ${dados.informanteDescricao}`, mH + 15, y + 56);
+  if (dados.contatoEmergenciaNome) doc.text(`Emergência: ${dados.contatoEmergenciaNome}  ${dados.contatoEmergenciaTelefone}`, mH + 15, y + 68);
+  // vitals
+  const c2x = mH + cW * 0.56;
+  doc.setFontSize(7); doc.setFont(undefined, 'bold'); doc.setTextColor(...teal);
+  doc.text('DADOS FÍSICOS', c2x, y + 14);
+  doc.setFontSize(11); doc.setFont(undefined, 'bold'); doc.setTextColor(...navy);
+  doc.text(dados.peso ? `${dados.peso} kg`, c2x, y + 32);
+  doc.text(dados.altura ? `${dados.altura} cm`, c2x + 55, y + 32);
+  doc.setFontSize(7.5); doc.setFont(undefined, 'normal'); doc.setTextColor(...gray);
+  doc.text('PESO', c2x, y + 22); doc.text('ALTURA', c2x + 55, y + 22);
+  if (imc) {
+    const ic = imc.valor < 25 ? green : imc.valor < 30 ? [199, 102, 8] : red;
+    doc.setTextColor(...ic); doc.setFont(undefined, 'bold'); doc.setFontSize(8);
+    doc.text(`IMC ${imc.texto} — ${imc.cl}`, c2x, y + 56);
+  }
+  // alerts
+  const c3x = mH + cW * 0.84;
+  doc.setFontSize(7); doc.setFont(undefined, 'bold'); doc.setTextColor(...teal);
+  doc.text('ALERTAS', c3x, y + 14);
+  let ay = y + 26;
+  const alertas = [];
+  if (boolState.alergiaMed || boolState.alergiaAlim) alertas.push(['⚠ ALERGIAS', red]);
+  if (boolState.alergiaLatex) alertas.push(['⚠ LÁTEX', red]);
+  if (boolState.possivelGravidez) alertas.push(['⚠ GRAVIDEZ', [199,102,8]]);
+  if (alertas.length === 0) { doc.setTextColor(...green); doc.text('✓ SEM ALERTAS', c3x, ay); }
+  else alertas.forEach(([t, c]) => {
+    doc.setFillColor(...c); doc.roundedRect(c3x, ay - 11, 68, 14, 3, 3, 'F');
+    doc.setTextColor(255,255,255); doc.setFont(undefined, 'bold'); doc.setFontSize(6.5);
+    doc.text(t, c3x + 4, ay - 2); ay += 19;
+  });
+  y += 102;
+
+  // ── SECTIONS ──
+  doc.setFont(undefined, 'normal');
+
+  hdrSection('01', 'IDENTIFICAÇÃO DO PACIENTE');
+  row('Nome completo', dados.nomeCompleto, true);
+  row('Nascimento / Idade', `${nascText}${idadeCalc ? '  ·  ' + idadeCalc : ''}`);
+  row('Sexo', dados.sexo);
+  row('Peso / Altura', `${dados.peso || '—'} kg  /  ${dados.altura || '—'} cm${imc ? '  ·  IMC ' + imc.texto + ' (' + imc.cl + ')' : ''}`);
+  row('Informante', dados.informanteDescricao);
+  if (dados.contatoEmergenciaNome) row('Contato de emergência', `${dados.contatoEmergenciaNome}  ${dados.contatoEmergenciaTelefone}`);
+  if (dados.crmMedico) row('Médico / CRM', `${dados.ufMedico}-${dados.crmMedico}`);
+
+  hdrSection('02', 'PROCEDIMENTO PREVISTO');
+  row('Categoria', dados.procedimentoCategoria);
+  if (dados.procedimentoNome) row('Procedimento descrito', dados.procedimentoNome);
+  if (dados.dataCirurgiaConhecida && dados.dataCirurgiaTexto) row('Data prevista', dados.dataCirurgiaTexto);
+
+  hdrSection('03', 'HISTÓRICO CIRÚRGICO E ANESTÉSICO');
+  row('Cirurgias anteriores', dados.teveCircurgia ? 'Sim — ' + (dados.descricaoCirurgias || '(descrito)') : 'Não');
+  if (dados.teveCircurgia && anestTipos.size > 0) row('Tipos de anestesia prévia', Array.from(anestTipos).join('  ·  '));
+  row('Complicação anestésica', dados.teveCompl ? 'Sim — ' + (dados.descricaoCompl || 'sim') : 'Não', dados.teveCompl);
+  row('Complicação em familiar', dados.familiarCompl ? 'Sim — ' + (dados.descricaoFamiliar || 'sim') : 'Não');
+
+  hdrSection('04', 'MEDICAMENTOS EM USO');
+  if (dados.alergiaMed) alertRow('⚠  ALERGIA A MEDICAMENTOS: ' + (dados.descricaoAlergMed || ''), red);
+  else row('Alergia a medicamentos', 'Nenhuma declarada');
+  if (dados.usaMed && medicamentos.length > 0) {
+    guard(20);
+    const hW = cW - 20, c1 = hW * 0.46, c2 = hW * 0.27;
+    doc.setFillColor(230, 236, 248); doc.rect(mH + 4, y, hW + 12, 16, 'F');
+    doc.setFontSize(7); doc.setFont(undefined, 'bold'); doc.setTextColor(...gray);
+    doc.text('MEDICAMENTO', mH + 12, y + 10);
+    doc.text('DOSAGEM', mH + 12 + c1, y + 10);
+    doc.text('FREQUÊNCIA', mH + 12 + c1 + c2 + 8, y + 10);
+    y += 18;
+    medicamentos.forEach((m, i) => {
+      guard(18);
+      if (i % 2 === 0) { doc.setFillColor(...rowBg); doc.rect(mH + 4, y, hW + 12, 16, 'F'); }
+      doc.setFontSize(9); doc.setFont(undefined, 'bold'); doc.setTextColor(50,62,89);
+      doc.text(m.nome || '—', mH + 12, y + 11);
+      doc.setFont(undefined, 'normal'); doc.setTextColor(...gray);
+      doc.text(m.dosagem || '—', mH + 12 + c1, y + 11);
+      doc.text(m.frequencia || '—', mH + 12 + c1 + c2 + 8, y + 11);
+      doc.setDrawColor(...border); doc.setLineWidth(0.3);
+      doc.line(mH + 8, y + 16, mH + cW - 8, y + 16);
+      y += 16;
+    });
+    y += 4;
+  } else if (!dados.usaMed) {
+    row('Medicamentos', 'Não usa medicamentos regularmente');
+  }
+  if (dados.usaSupl) row('Suplementos / Fitoterápicos', dados.descricaoSupl);
+  else row('Suplementos', 'Não usa');
+
+  hdrSection('05', 'DOENÇAS E CONDIÇÕES DE SAÚDE');
+  if (condicoes.size === 0) {
+    row('Condições declaradas', 'Nenhuma condição selecionada');
+  } else {
+    const arr = Array.from(condicoes);
+    const per = Math.ceil(arr.length / 2);
+    const colW = (cW - 12) / 2;
+    arr.forEach((cond, i) => {
+      const col = Math.floor(i / per);
+      const rowI = i % per;
+      if (col === 0 && rowI === 0) {
+        guard(per * 17 + 10); y += 4;
+      }
+      const xo = mH + col * (colW + 12);
+      const yo = y + rowI * 17 - (col === 0 ? 0 : 0);
+      if (rowI % 2 === 0) { doc.setFillColor(...rowBg); doc.rect(xo, yo, colW, 16, 'F'); }
+      doc.setFontSize(8); doc.setTextColor(...green); doc.text('✓', xo + 5, yo + 11);
+      doc.setTextColor(50,62,89); doc.text(cond, xo + 16, yo + 11, { maxWidth: colW - 20 });
+    });
+    y += per * 17 + 6;
+  }
+  if (dados.outrasCond) row('Outras condições', dados.outrasCond);
+
+  hdrSection('06', 'HÁBITOS E ESTILO DE VIDA');
+  row('Tabagismo',        dados.fumante ? 'Sim — ' + (dados.descTabaco || '') : 'Não');
+  row('Álcool',           dados.alcool  ? 'Sim — ' + (dados.descAlcool || '') : 'Não');
+  row('Drogas ilícitas',  dados.drogas  ? 'Sim — ' + (dados.descDrogas || '') : 'Não');
+  row('Atividade física', dados.ativFisica ? 'Sim — ' + (dados.descAtiv || '') : 'Não');
+  row('Distúrbio do sono',dados.sono    ? 'Sim — ' + (dados.descSono || '')  : 'Não');
+
+  if (dados.sexo === 'Feminino') {
+    hdrSection('07', 'SAÚDE FEMININA');
+    row('Possível gravidez',  dados.possivelGravidez ? 'Sim ⚠' : 'Não', dados.possivelGravidez);
+    row('Amamentando',        dados.amamentando      ? 'Sim'   : 'Não');
+    row('Anticoncepcional',   dados.anticoncepcional ? 'Sim'   : 'Não');
+    row('Menopausa',          dados.menopausa        ? 'Sim'   : 'Não');
+    if (!dados.menopausa && dados.ultimaMens) row('Última menstruação', dados.ultimaMens);
+    if (dados.possivelGravidez) alertRow('⚠  Possível gravidez — avaliar beta-hCG antes da anestesia', [199,102,8]);
+  }
+
+  hdrSection(dados.sexo === 'Feminino' ? '08' : '07', 'PREPARAÇÃO PRÉ-OPERATÓRIA');
+  row('Prótese dentária',      dados.proteseDentaria   ? 'Sim — informar equipe' : 'Não declarada');
+  row('Piercing / Implante',   dados.piercingImplante  ? 'Sim — informar equipe' : 'Não declarado');
+  row('Alergia ao látex',      dados.alergiaLatex      ? 'Sim ⚠ — ambiente latex-free necessário' : 'Não declarada', dados.alergiaLatex);
+  row('Alergia alimentar',     dados.alergiaAlim       ? 'Sim — ' + (dados.descAlimAlerg || '') : 'Não declarada');
+  row('Acompanhante',          dados.acompanhante      ? 'Confirmado' : 'Não confirmado');
+  if (dados.alergiaLatex) alertRow('⚠  ALERGIA AO LÁTEX — Este paciente requer ambiente latex-free OBRIGATÓRIO', red);
+
+  if (dados.obsLivres) {
+    hdrSection(dados.sexo === 'Feminino' ? '09' : '08', 'OBSERVAÇÕES DO PACIENTE');
+    guard(50);
+    const lines = doc.splitTextToSize(dados.obsLivres, cW - 24);
+    const bH = lines.length * 12 + 20;
+    doc.setFillColor(241, 249, 255); doc.roundedRect(mH, y, cW, bH, 6, 6, 'F');
+    doc.setDrawColor(...border); doc.roundedRect(mH, y, cW, bH, 6, 6, 'S');
+    doc.setFontSize(9); doc.setFont(undefined, 'normal'); doc.setTextColor(50,62,89);
+    doc.text(lines, mH + 12, y + 14);
+    y += bH + 10;
+  }
+
+  // ── SIGN-IN ──
+  guard(50); y += 10;
+  doc.setFillColor(230, 247, 237); doc.roundedRect(mH, y, cW, 24, 5, 5, 'F');
+  doc.setDrawColor(...green); doc.setLineWidth(0.8); doc.roundedRect(mH, y, cW, 24, 5, 5, 'S');
+  doc.setFillColor(...green); doc.roundedRect(mH, y, 5, 24, 5, 5, 'F');
+  doc.setFontSize(9); doc.setFont(undefined, 'bold'); doc.setTextColor(...green);
+  doc.text('DECLARAÇÃO DO PACIENTE E ASSINATURA', mH + 14, y + 15);
+  y += 32;
+
+  // Sig lines
+  guard(50);
+  doc.setDrawColor(...navy); doc.setLineWidth(0.7);
+  const sw = (cW - 20) / 2;
+  doc.line(mH + 10, y + 30, mH + 10 + sw, y + 30);
+  doc.line(mH + sw + 30, y + 30, mH + cW - 10, y + 30);
+  doc.setFontSize(7.5); doc.setFont(undefined, 'normal'); doc.setTextColor(...gray);
+  doc.text('Assinatura / Impressão Digital do Paciente', mH + 10 + sw / 2, y + 40, { align: 'center' });
+  doc.text('Assinatura do Profissional de Saúde', mH + sw + 30 + sw / 2, y + 40, { align: 'center' });
+  doc.setFontSize(8); doc.setFont(undefined, 'bold'); doc.setTextColor(...navy);
+  doc.text('Data: ___________  Local: __________________________________', mH + 10, y + 10);
+  y += 52;
+
+  // ── LGPD ──
+  guard(55); y += 8;
+  const lgpdText = 'Os dados coletados são usados exclusivamente para avaliação pré-anestésica, nos termos da Lei 13.709/2018 (LGPD). O paciente tem direito ao acesso, correção e exclusão de seus dados. Informações fornecidas de forma remota pelo sistema Previanest.';
+  const lgpdLines = doc.splitTextToSize(lgpdText, cW - 24);
+  const lgpdH = lgpdLines.length * 9 + 28;
+  doc.setFillColor(255, 250, 235); doc.roundedRect(mH, y, cW, lgpdH, 6, 6, 'F');
+  doc.setDrawColor(199,102,8); doc.setLineWidth(0.5); doc.roundedRect(mH, y, cW, lgpdH, 6, 6, 'S');
+  doc.setFontSize(8.5); doc.setFont(undefined, 'bold'); doc.setTextColor(199,102,8);
+  doc.text('⚖  Aviso de Privacidade — LGPD', mH + 10, y + 13);
+  doc.setFontSize(7.5); doc.setFont(undefined, 'normal'); doc.setTextColor(80,60,20);
+  doc.text(lgpdLines, mH + 10, y + 24);
+  y += lgpdH + 10;
+
+  // Final footer
+  guard(20); y += 6;
+  doc.setDrawColor(...navy); doc.setLineWidth(0.8); doc.line(mH, y, mH + cW, y);
+  doc.setFontSize(7.5); doc.setFont(undefined, 'normal'); doc.setTextColor(...gray);
+  const finalText = `Documento gerado pelo Previanest (web) em ${formatDate(now)} às ${formatTime(now)}. Não substitui avaliação presencial obrigatória.`;
+  doc.text(finalText, W / 2, y + 12, { align: 'center' });
+
+  return doc.output('arraybuffer');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUBMIT
+// ─────────────────────────────────────────────────────────────────────────────
+async function submitForm() {
+  if (!validateStep(9)) return;
+
+  const dados = collectData();
+
+  showLoading('Autenticando...');
+  try {
+    await auth.signInAnonymously();
+
+    showLoading('Gerando PDF...');
+    const pdfBuffer = gerarPDF(dados);
+    const pdfBlob   = new Blob([pdfBuffer], { type: 'application/pdf' });
+
+    const fichaId   = genUUID();
+    const timestamp = Math.floor(Date.now() / 1000);
+    const crmCompleto = `${dados.ufMedico}${dados.crmMedico}`;
+    const pasta = dados.crmMedico
+      ? `fichas_preanestesicas/${crmCompleto}/${fichaId}`
+      : dados.codigoInstituicao
+        ? `fichas_preanestesicas/inst_${dados.codigoInstituicao}/${fichaId}`
+        : `fichas_preanestesicas/sem_vinculo/${fichaId}`;
+
+    showLoading('Enviando PDF...');
+    const pdfRef = storage.ref(`${pasta}/ficha_pre_anestesica_${timestamp}.pdf`);
+    await pdfRef.put(pdfBlob);
+    const pdfURL = await pdfRef.getDownloadURL();
+
+    showLoading('Enviando documentos...');
+    const documentosURLs = [];
+    for (let i = 0; i < arquivos.length; i++) {
+      try {
+        const arq  = arquivos[i];
+        const nome = arq.nome.replace(/[/\s]/g, '_');
+        const ref  = storage.ref(`${pasta}/documentos/${i + 1}_${nome}`);
+        const tipo = arq.tipo === 'imagem' ? 'image/jpeg' : arq.tipo === 'pdf' ? 'application/pdf' : 'application/octet-stream';
+        await ref.put(new Blob([arq.dados], { type: tipo }));
+        const url = await ref.getDownloadURL();
+        documentosURLs.push(url);
+      } catch (e) { console.warn('Doc upload failed:', e); }
+    }
+
+    showLoading('Salvando ficha...');
+    const imc   = calcIMC();
+    const nasc  = parseBRDate(dados.dataNascimentoTexto);
+    const idade = nasc ? calcAge(nasc) : 0;
+
+    const fichaDoc = {
+      id:                    fichaId,
+      pacienteNome:          dados.nomeCompleto,
+      pacienteSexo:          dados.sexo,
+      pacienteIdade:         nasc ? `${idade} anos` : '',
+      pacienteIdadeAnos:     nasc ? idade : 0,
+      pacientePeso:          dados.peso,
+      pacienteAltura:        dados.altura,
+      procedimentoCategoria: dados.procedimentoCategoria,
+      procedimentoNome:      dados.procedimentoNome,
+      condicoesCount:        condicoes.size,
+      medicamentosCount:     dados.usaMed ? medicamentos.length : 0,
+      imc:                   imc ? imc.texto : '',
+      imcClassificacao:      imc ? imc.cl : '',
+      ufCRM:                 dados.ufMedico,
+      numeroCRM:             dados.crmMedico,
+      crmCompleto:           crmCompleto,
+      codigoInstituicao:     dados.codigoInstituicao || '',
+      dataCriacao:           firebase.firestore.FieldValue.serverTimestamp(),
+      pdfURL:                pdfURL,
+      dosePdfURL:            '',
+      documentosURLs:        documentosURLs,
+      temAlergias:           dados.alergiaMed || dados.alergiaAlim,
+      alergiaLatex:          dados.alergiaLatex,
+      possivelGravidez:      dados.possivelGravidez,
+      arquivada:             false,
+      dataCirurgiaConhecida: dados.dataCirurgKnown,
+      dataCirurgia:          (dados.dataCirurgKnown && dados.dataCirurgiaTexto)
+                               ? firebase.firestore.Timestamp.fromDate(parseBRDate(dados.dataCirurgiaTexto) || new Date())
+                               : null,
+      dadosCompletos:        buildDadosCompletos(dados)
+    };
+
+    await db.collection('fichas_preanestesicas').doc(fichaId).set(fichaDoc);
+
+    hideLoading();
+    showSuccess(crmCompleto, dados.nomeCompleto);
+
+  } catch (err) {
+    hideLoading();
+    console.error(err);
+    alert('Erro ao enviar ficha: ' + err.message + '\n\nVerifique sua conexão e tente novamente.');
+  }
+}
+
+function collectData() {
+  return {
+    // Médico
+    tipoIdentificador:     tipoIdVal,
+    ufMedico:              val('uf-medico'),
+    crmMedico:             val('crm-medico'),
+    codigoInstituicao:     val('cod-inst'),
+    // Paciente
+    nomeCompleto:          val('nome'),
+    dataNascimentoTexto:   val('data-nasc'),
+    nascimento:            parseBRDate(val('data-nasc')),
+    sexo:                  sexoVal,
+    peso:                  val('peso'),
+    altura:                val('altura'),
+    // Informante
+    informanteTipo:        informanteVal,
+    informanteNome:        val('resp-nome'),
+    informanteRelacao:     relacaoVal,
+    informanteDescricao:   informanteVal === 'paciente' ? 'Próprio paciente' : `${val('resp-nome')} (${relacaoVal})`,
+    // Emergência
+    contatoEmergenciaNome: val('emerg-nome'),
+    contatoEmergenciaTelefone: val('emerg-tel'),
+    // Procedimento
+    procedimentoCategoria: procVal,
+    procedimentoNome:      val('proc-nome'),
+    // Histórico
+    teveCircurgia:         boolState.teveCircurgia,
+    descricaoCirurgias:    val('desc-cirurgias'),
+    teveCompl:             boolState.teveCompl,
+    descricaoCompl:        val('desc-compl'),
+    familiarCompl:         boolState.familiarCompl,
+    descricaoFamiliar:     val('desc-familiar'),
+    // Medicamentos
+    usaMed:                boolState.usaMed,
+    usaSupl:               boolState.usaSupl,
+    descricaoSupl:         val('desc-supl'),
+    alergiaMed:            boolState.alergiaMed,
+    descricaoAlergMed:     val('desc-alerg-med'),
+    // Condições
+    outrasCond:            val('outras-cond'),
+    // Hábitos
+    fumante:               boolState.fumante,
+    descTabaco:            val('desc-tabaco'),
+    alcool:                boolState.alcool,
+    descAlcool:            val('desc-alcool'),
+    drogas:                boolState.drogas,
+    descDrogas:            val('desc-drogas'),
+    ativFisica:            boolState.ativFisica,
+    descAtiv:              val('desc-ativ'),
+    sono:                  boolState.sono,
+    descSono:              val('desc-sono'),
+    // Saúde feminina
+    possivelGravidez:      boolState.possivelGravidez,
+    amamentando:           boolState.amamentando,
+    anticoncepcional:      boolState.anticoncepcional,
+    menopausa:             boolState.menopausa,
+    ultimaMens:            val('ultima-mens'),
+    // Preparação
+    dataCirurgKnown:       boolState.dataCirurgKnown,
+    dataCirurgiaTexto:     val('data-cirurgia'),
+    proteseDentaria:       boolState.proteseDentaria,
+    piercingImplante:      boolState.piercingImplante,
+    alergiaLatex:          boolState.alergiaLatex,
+    alergiaAlim:           boolState.alergiaAlim,
+    descAlimAlerg:         val('desc-alim'),
+    acompanhante:          boolState.acompanhante,
+    // Observações
+    obsLivres:             val('obs-livres'),
+  };
+}
+
+function buildDadosCompletos(d) {
+  const nasc = parseBRDate(d.dataNascimentoTexto);
+  const cir  = parseBRDate(d.dataCirurgiaTexto);
+  return {
+    nomeCompleto:                  d.nomeCompleto,
+    dataNascimentoTexto:           d.dataNascimentoTexto,
+    dataNascimentoTs:              nasc ? nasc.getTime() / 1000 : 0,
+    sexo:                          d.sexo,
+    peso:                          d.peso,
+    altura:                        d.altura,
+    tipoIdentificador:             d.tipoIdentificador,
+    crmMedico:                     d.crmMedico,
+    ufMedico:                      d.ufMedico,
+    codigoInstituicao:             d.codigoInstituicao || '',
+    informanteTipo:                d.informanteTipo,
+    informanteNome:                d.informanteNome,
+    informanteRelacao:             d.informanteRelacao,
+    contatoEmergenciaNome:         d.contatoEmergenciaNome,
+    contatoEmergenciaTelefone:     d.contatoEmergenciaTelefone,
+    procedimentoCategoria:         d.procedimentoCategoria,
+    procedimentoNome:              d.procedimentoNome,
+    teveCircurgia:                 d.teveCircurgia,
+    descricaoCirurgias:            d.descricaoCirurgias,
+    tiposAnestesiaAnterior:        Array.from(anestTipos),
+    teveComplicacaoAnestesia:      d.teveCompl,
+    descricaoComplicacaoAnestesia: d.descricaoCompl,
+    familiarComComplicacao:        d.familiarCompl,
+    descricaoFamiliarComplicacao:  d.descricaoFamiliar,
+    usaMedicamentos:               d.usaMed,
+    medicamentos:                  medicamentos.map(m => ({ id: m.id, nome: m.nome, dosagem: m.dosagem, frequencia: m.frequencia })),
+    usaSuplementos:                d.usaSupl,
+    descricaoSuplementos:          d.descricaoSupl,
+    temAlergiaMedicamento:         d.alergiaMed,
+    descricaoAlergiaMedicamento:   d.descricaoAlergMed,
+    condicoesSaude:                Array.from(condicoes),
+    outrasCondicoesSaude:          d.outrasCond,
+    fumante:                       d.fumante,
+    descricaoTabagismo:            d.descTabaco,
+    consumoAlcool:                 d.alcool,
+    descricaoAlcool:               d.descAlcool,
+    usaDrogas:                     d.drogas,
+    descricaoDrogas:               d.descDrogas,
+    praticaAtividadeFisica:        d.ativFisica,
+    descricaoAtividadeFisica:      d.descAtiv,
+    temDisturbioSono:              d.sono,
+    descricaoDisturbioSono:        d.descSono,
+    possivelGravidez:              d.possivelGravidez,
+    amamentando:                   d.amamentando,
+    usaAnticoncepcional:           d.anticoncepcional,
+    menopausa:                     d.menopausa,
+    ultimaMenstruacao:             d.ultimaMens,
+    dataCirurgiaConhecida:         d.dataCirurgKnown,
+    dataCirurgiaTexto:             d.dataCirurgiaTexto,
+    dataCirurgiaTs:                cir ? cir.getTime() / 1000 : 0,
+    temProteseDentaria:            d.proteseDentaria,
+    temPiercingOuImplante:         d.piercingImplante,
+    alergiaLatex:                  d.alergiaLatex,
+    alergiaAlimentar:              d.alergiaAlim,
+    descricaoAlergiaAlimentar:     d.descAlimAlerg,
+    jejumCompreendido:             false,
+    temAcompanhante:               d.acompanhante,
+    documentosMeta:                arquivos.map(a => ({ nome: a.nome, tipo: a.tipo })),
+    observacoesLivres:             d.obsLivres,
+  };
+}
+
+function showSuccess(crm, nome) {
+  STEPS.forEach(id => document.getElementById(id).classList.remove('active'));
+  document.getElementById('s-success').classList.add('active');
+  document.getElementById('nav-footer').style.display = 'none';
+  document.getElementById('success-tag').textContent = crm ? `Enviado ao médico CRM ${crm}` : 'Ficha enviada com sucesso';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UTILITIES
+// ─────────────────────────────────────────────────────────────────────────────
+function val(id) { return document.getElementById(id)?.value?.trim() || ''; }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function maskDate(v) {
+  const n = v.replace(/\D/g,'').slice(0,8);
+  if (n.length <= 2) return n;
+  if (n.length <= 4) return n.slice(0,2) + '/' + n.slice(2);
+  return n.slice(0,2) + '/' + n.slice(2,4) + '/' + n.slice(4);
+}
+
+function maskPhone(v) {
+  const n = v.replace(/\D/g,'').slice(0,11);
+  if (n.length <= 2) return n.length ? '(' + n : '';
+  if (n.length <= 7) return '(' + n.slice(0,2) + ') ' + n.slice(2);
+  return '(' + n.slice(0,2) + ') ' + n.slice(2,7) + '-' + n.slice(7);
+}
+
+function parseBRDate(s) {
+  if (!s || s.length !== 10) return null;
+  const [d, m, y] = s.split('/').map(Number);
+  if (!d || !m || !y) return null;
+  const date = new Date(y, m - 1, d);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+function calcAge(date) {
+  const hoje = new Date();
+  let a = hoje.getFullYear() - date.getFullYear();
+  const dm = hoje.getMonth() - date.getMonth();
+  if (dm < 0 || (dm === 0 && hoje.getDate() < date.getDate())) a--;
+  return a;
+}
+
+function formatDate(d) {
+  return d.toLocaleDateString('pt-BR');
+}
+function formatTime(d) {
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function genUUID() {
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+}
+
+function showLoading(msg) {
+  document.getElementById('loading-overlay').style.display = 'flex';
+  document.getElementById('loading-msg').textContent = msg;
+}
+function hideLoading() {
+  document.getElementById('loading-overlay').style.display = 'none';
+}
+
+</script>
+</body>
+</html>
