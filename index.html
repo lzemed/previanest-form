@@ -711,8 +711,11 @@
     </div>
     <div class="cond-wrap" id="data-cir-wrap">
       <div class="field"><label>Data prevista da cirurgia</label>
-        <input type="text" id="data-cirurgia" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric"></div>
+        <input type="text" id="data-cirurgia" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric" onblur="validarDataCirurgia()">
+        <div id="data-cir-error" class="alert-box alert-danger" style="display:none;margin-top:6px"></div>
+      </div>
     </div>
+    <div id="s7-error" class="alert-box alert-danger" style="display:none;margin-bottom:10px"></div>
     <hr class="divider">
     <div class="field"><label>Usa prótese dentária (dentadura, ponte removível)?</label>
       <div class="sim-nao">
@@ -914,8 +917,19 @@ function prevStep() {
 }
 
 // ── VALIDATION ──
+function validarDataCirurgia() {
+  const errEl = document.getElementById('data-cir-error');
+  const dateStr = val('data-cirurgia');
+  if (!errEl || dateStr.length < 10) { if(errEl) errEl.style.display='none'; return true; }
+  const d = parseBRDate(dateStr);
+  if (!d) { errEl.textContent = 'Data inválida. Use o formato DD/MM/AAAA.'; errEl.style.display='block'; return false; }
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  if (d < hoje) { errEl.textContent = '⚠️ A data informada já passou. O procedimento deve ser agendado para hoje ou uma data futura.'; errEl.style.display='block'; return false; }
+  errEl.style.display='none'; return true;
+}
+
 function validateStep(step) {
-  hideErr('s0-error');hideErr('s1-error');hideErr('s9-error');
+  hideErr('s0-error');hideErr('s1-error');hideErr('s7-error');hideErr('s9-error');
   if(step===0){
     if(tipoIdVal==='crm'){
       const crm=document.getElementById('crm-medico').value.trim();
@@ -936,6 +950,12 @@ function validateStep(step) {
     if(informanteVal==='responsavel'){
       if(!document.getElementById('resp-nome').value.trim()){showErr('s1-error','Por favor, informe o nome do responsável.');return false;}
       if(!relacaoVal){showErr('s1-error','Por favor, selecione a relação do responsável com o paciente.');return false;}
+    }
+  }
+  if(step===7){
+    if(boolState.dataCirurgKnown && !validarDataCirurgia()){
+      showErr('s7-error','Por favor, corrija a data da cirurgia antes de continuar.');
+      return false;
     }
   }
   if(step===9){
@@ -1111,7 +1131,12 @@ function gerarPDF(dados){
   doc.setFontSize(7.5);doc.setFont(undefined,'normal');doc.text('Data de emissão',W-mH-150,28);
   doc.setFontSize(10);doc.setFont(undefined,'bold');doc.text(formatDate(now)+'  '+formatTime(now),W-mH-150,42);
   doc.setFontSize(6);doc.setFont(undefined,'normal');doc.text('CONFIDENCIAL — USO MÉDICO EXCLUSIVO',W-mH-150,58);
-  y=0;newPage();y=95;
+  // Rodapé da página 1 (sem adicionar nova página)
+  doc.setDrawColor(...border);doc.setLineWidth(0.4);doc.line(mH,830,W-mH,830);
+  doc.setFontSize(7);doc.setTextColor(...gray);
+  doc.text('Previanest — Ficha Pré-Anestésica  ·  Documento Confidencial',mH,838);
+  doc.text('Pág. 1',W-mH,838,{align:'right'});
+  y=95;
   doc.setFillColor(248,250,255);doc.roundedRect(mH,y,cW,90,8,8,'F');
   doc.setDrawColor(...border);doc.setLineWidth(0.8);doc.roundedRect(mH,y,cW,90,8,8,'S');
   doc.setFillColor(...navy);doc.roundedRect(mH,y,6,90,8,8,'F');
