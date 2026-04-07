@@ -113,9 +113,9 @@
     .proc-card:hover{border-color:var(--teal);background:rgba(10,127,153,.04)}
     .proc-card.sel{border-color:var(--teal);background:rgba(10,127,153,.08);box-shadow:0 0 0 3px rgba(10,127,153,.12)}
     .proc-icon{font-size:26px;flex-shrink:0;line-height:1;margin-top:1px}
-    .proc-text{}
-    .proc-name{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:3px}
-    .proc-ex{font-size:11px;color:var(--gray);line-height:1.4}
+    .proc-text{display:flex;flex-direction:column;gap:4px}
+    .proc-name{font-size:13px;font-weight:700;color:var(--navy);display:block}
+    .proc-ex{font-size:11px;color:var(--gray);line-height:1.4;display:block}
 
     /* ── Alert box ── */
     .alert-box{border-radius:8px;padding:11px 13px;font-size:13px;margin:10px 0;line-height:1.5}
@@ -369,7 +369,7 @@
     <hr class="divider">
     <div class="field">
       <label>Quem está preenchendo este formulário? <span class="required">*</span></label>
-      <div class="btn-group">
+      <div class="btn-group" id="informante-group">
         <button class="btn-op sel" onclick="selectInformante('paciente')">O próprio paciente</button>
         <button class="btn-op" onclick="selectInformante('responsavel')">Responsável legal</button>
       </div>
@@ -688,8 +688,12 @@
           <div class="jejum-desc">Alimentos sólidos, leite integral, sucos com polpa e refeições em geral</div>
         </div>
         <div class="jejum-item">
+          <div><div class="jejum-time">4h</div><div class="jejum-unit">horas</div></div>
+          <div class="jejum-desc">Leite materno — para bebês e lactentes <span style="font-size:10px;color:#0369a1">(conforme diretrizes ASA/SBA)</span></div>
+        </div>
+        <div class="jejum-item">
           <div><div class="jejum-time">6h</div><div class="jejum-unit">horas</div></div>
-          <div class="jejum-desc">Leite materno (para bebês) e fórmulas infantis</div>
+          <div class="jejum-desc">Fórmulas infantis e leite de vaca</div>
         </div>
         <div class="jejum-item">
           <div><div class="jejum-time">2h</div><div class="jejum-unit">horas</div></div>
@@ -750,7 +754,7 @@
         <button class="btn-sim" onclick="setState('acompanhante', true)">Sim, confirmado</button>
         <button class="btn-nao on" onclick="setState('acompanhante', false)">Ainda não confirmado</button>
       </div>
-      <p class="hint" style="margin-top:6px">Após anestesia, é obrigatório ter um acompanhante. Não é seguro ir para casa sozinho(a) nem de táxi/aplicativo sem acompanhante.</p>
+      <p class="hint" style="margin-top:6px">⚠️ <strong>Para cirurgias ambulatoriais</strong> (alta no mesmo dia): é obrigatório ter um acompanhante adulto responsável para levá-lo para casa. Os efeitos residuais da anestesia — como sonolência, reflexos alterados e raciocínio lento — persistem por horas, tornando perigoso dirigir ou se locomover sozinho, mesmo de transporte por aplicativo.<br><br>✅ <strong>Para internações hospitalares</strong>: se você ficará hospitalizado e receberá alta nos dias seguintes, após total recuperação dos efeitos da anestesia e com liberação médica, o acompanhante para o deslocamento não é obrigatório.</p>
     </div>
   </div>
 </div>
@@ -957,7 +961,7 @@ function selectSexo(val){
 }
 function selectInformante(val){
   informanteVal=val;
-  document.querySelectorAll('#s1 .field:nth-child(5) .btn-op').forEach(b=>{b.classList.toggle('sel',b.getAttribute('onclick')?.includes(val));});
+  document.querySelectorAll('#informante-group .btn-op').forEach(b=>{b.classList.toggle('sel',b.getAttribute('onclick')?.includes(val));});
   document.getElementById('resp-wrap').classList.toggle('show',val==='responsavel');
 }
 function selectRelacao(val){
