@@ -825,13 +825,24 @@ function validateStep(step) {
   return true;
 }
 
-function showErr(id, msg) { const e = document.getElementById(id); if(e){e.textContent=msg;e.style.display='block';} }
+function showErr(id, msg) {
+  const e = document.getElementById(id);
+  if (e) {
+    e.textContent = msg;
+    e.style.display = 'block';
+    setTimeout(() => e.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+  }
+}
 function hideErr(id) { const e = document.getElementById(id); if(e) e.style.display='none'; }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UI HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 function selectTipoId(tipo) {
+  if (tipo === 'instituicao') {
+    showErr('s0-error', '⚠️ A vinculação por código de instituição ainda não está disponível. Por favor, utilize o CRM do médico anestesiologista.');
+    return;
+  }
   tipoIdVal = tipo;
   document.getElementById('tipo-crm').classList.toggle('sel', tipo === 'crm');
   document.getElementById('tipo-inst').classList.toggle('sel', tipo === 'instituicao');
