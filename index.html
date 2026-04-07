@@ -1226,8 +1226,8 @@ function gerarPDF(dados) {
   doc.setFontSize(7); doc.setFont(undefined, 'bold'); doc.setTextColor(...teal);
   doc.text('DADOS FÍSICOS', c2x, y + 14);
   doc.setFontSize(11); doc.setFont(undefined, 'bold'); doc.setTextColor(...navy);
-  doc.text(dados.peso ? `${dados.peso} kg`, c2x, y + 32);
-  doc.text(dados.altura ? `${dados.altura} cm`, c2x + 55, y + 32);
+  doc.text(dados.peso ? `${dados.peso} kg` : '— kg', c2x, y + 32);
+  doc.text(dados.altura ? `${dados.altura} cm` : '— cm', c2x + 55, y + 32);
   doc.setFontSize(7.5); doc.setFont(undefined, 'normal'); doc.setTextColor(...gray);
   doc.text('PESO', c2x, y + 22); doc.text('ALTURA', c2x + 55, y + 22);
   if (imc) {
