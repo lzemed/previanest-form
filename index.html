@@ -504,6 +504,7 @@
         <textarea id="desc-familiar" placeholder="Ex: Meu pai teve febre muito alta durante uma cirurgia ortopédica..."></textarea>
       </div>
     </div>
+    <div id="s2-error" class="alert-box alert-danger" style="display:none"></div>
   </div>
 </div>
 
@@ -554,6 +555,7 @@
         <textarea id="desc-alerg-med" placeholder="Ex: Dipirona — urticária intensa&#10;Penicilina — inchou a garganta e fui para o pronto-socorro..."></textarea>
       </div>
     </div>
+    <div id="s3-error" class="alert-box alert-danger" style="display:none"></div>
   </div>
 </div>
 
@@ -632,6 +634,7 @@
       <div class="field"><label>Descreva o distúrbio do sono</label>
         <input type="text" id="desc-sono" placeholder="Ex: Apneia diagnosticada, uso de CPAP / Ronco forte, nunca investiguei"></div>
     </div>
+    <div id="s5-error" class="alert-box alert-danger" style="display:none"></div>
   </div>
 </div>
 
@@ -929,7 +932,7 @@ function validarDataCirurgia() {
 }
 
 function validateStep(step) {
-  hideErr('s0-error');hideErr('s1-error');hideErr('s7-error');hideErr('s9-error');
+  hideErr('s0-error');hideErr('s1-error');hideErr('s2-error');hideErr('s3-error');hideErr('s5-error');hideErr('s7-error');hideErr('s9-error');
   if(step===0){
     if(tipoIdVal==='crm'){
       const crm=document.getElementById('crm-medico').value.trim();
@@ -951,6 +954,46 @@ function validateStep(step) {
       if(!document.getElementById('resp-nome').value.trim()){showErr('s1-error','Por favor, informe o nome do responsável.');return false;}
       if(!relacaoVal){showErr('s1-error','Por favor, selecione a relação do responsável com o paciente.');return false;}
     }
+  }
+  if(step===2){
+    // Histórico Cirúrgico - no mandatory fields, but if teveCircurgia=true, description should exist
+    if(boolState.teveCircurgia && !val('desc-cirurgias')){
+      showErr('s2-error','Por favor, descreva as cirurgias anteriores.');return false;
+    }
+    if(boolState.teveCompl && !val('desc-compl')){
+      showErr('s2-error','Por favor, descreva a complicação anestésica.');return false;
+    }
+    if(boolState.familiarCompl && !val('desc-familiar')){
+      showErr('s2-error','Por favor, descreva a complicação familiar.');return false;
+    }
+  }
+  if(step===3){
+    // Medicamentos - if uses meds, at least one must be added with name
+    if(boolState.usaMed && medicamentos.length===0){
+      showErr('s3-error','Por favor, adicione pelo menos um medicamento.');return false;
+    }
+    if(boolState.usaMed && medicamentos.some(m=>!m.nome.trim())){
+      showErr('s3-error','Preencha o nome de todos os medicamentos adicionados.');return false;
+    }
+    if(boolState.alergiaMed && !val('desc-alerg-med')){
+      showErr('s3-error','Por favor, descreva a alergia a medicamentos.');return false;
+    }
+  }
+  if(step===4){
+    // Condições de saúde - no mandatory validation needed (user can have none)
+    // But if "outras condições" text is started, it should be meaningful
+  }
+  if(step===5){
+    // Hábitos - if fumante/alcool/drogas = true, description should exist
+    if(boolState.fumante && !val('desc-tabaco')){
+      showErr('s5-error','Por favor, descreva o uso de tabaco.');return false;
+    }
+    if(boolState.drogas && !val('desc-drogas')){
+      showErr('s5-error','Por favor, descreva o uso de substâncias.');return false;
+    }
+  }
+  if(step===6){
+    // Saúde feminina - only shown for female, no strictly required fields
   }
   if(step===7){
     if(boolState.dataCirurgKnown && !validarDataCirurgia()){
@@ -1072,6 +1115,7 @@ function renderMeds(){
 // ── ARQUIVOS ──
 function addFile(file){
   if(arquivos.length>=10) return;
+  if(file.size>10*1024*1024){alert('Arquivo excede o tamanho máximo de 10MB');return;}
   const reader=new FileReader();
   reader.onload=e=>{const tipo=file.type.startsWith('image/')?'imagem':file.type==='application/pdf'?'pdf':'outro';arquivos.push({nome:file.name,dados:e.target.result,tipo});renderFiles();};
   reader.readAsArrayBuffer(file);
@@ -1393,7 +1437,7 @@ function gerarPDF(dados){
   if(dados.usaSupl)row('Suplementos / Fitoterápicos',dados.descricaoSupl);else row('Suplementos','Não usa');
   hdrSection('05','DOENÇAS E CONDIÇÕES DE SAÚDE');
   if(condicoes.size===0){row('Condições declaradas','Nenhuma condição selecionada');}
-  else{const arr=Array.from(condicoes),per=Math.ceil(arr.length/2),colW=(cW-12)/2;arr.forEach((cond,i)=>{const col=Math.floor(i/per),rowI=i%per;if(col===0&&rowI===0){guard(per*17+10);y+=4;}const xo=mH+col*(colW+12),yo=y+rowI*17;if(rowI%2===0){doc.setFillColor(...rowBg);doc.rect(xo,yo,colW,16,'F');}doc.setFontSize(8);doc.setTextColor(...green);doc.text('✓',xo+5,yo+11);doc.setTextColor(50,62,89);doc.text(cond,xo+16,yo+11,{maxWidth:colW-20});});y+=per*17+6;}
+  else{const arr=Array.from(condicoes),per=Math.ceil(arr.length/2),colW=(cW-12)/2;arr.forEach((cond,i)=>{const col=Math.floor(i/per),rowI=i%per;if(col===0&&rowI===0){guard(per*17+10);y+=4;}const xo=mH+col*(colW+12),yo=y+rowI*17;if(rowI%2===0){doc.setFillColor(...rowBg);doc.rect(xo,yo,colW,16,'F');}doc.setFontSize(8);doc.setTextColor(...green);doc.text('[X]',xo+5,yo+11);doc.setTextColor(50,62,89);doc.text(cond,xo+16,yo+11,{maxWidth:colW-20});});y+=per*17+6;}
   if(dados.outrasCond)row('Outras condições',dados.outrasCond);
   hdrSection('06','HÁBITOS E ESTILO DE VIDA');row('Tabagismo',dados.fumante?'Sim — '+(dados.descTabaco||''):'Não');row('Álcool',dados.alcool?'Sim — '+(dados.descAlcool||''):'Não');row('Drogas ilícitas',dados.drogas?'Sim — '+(dados.descDrogas||''):'Não');row('Atividade física',dados.ativFisica?'Sim — '+(dados.descAtiv||''):'Não');row('Distúrbio do sono',dados.sono?'Sim — '+(dados.descSono||''):'Não');
   if(dados.sexo==='Feminino'){hdrSection('07','SAÚDE FEMININA');row('Possível gravidez',dados.possivelGravidez?'Sim (!)':'Não',dados.possivelGravidez);row('Amamentando',dados.amamentando?'Sim':'Não');row('Anticoncepcional',dados.anticoncepcional?'Sim':'Não');row('Menopausa',dados.menopausa?'Sim':'Não');if(!dados.menopausa&&dados.ultimaMens)row('Última menstruação',dados.ultimaMens);if(dados.possivelGravidez)alertRow('POSSÍVEL GRAVIDEZ — avaliar beta-hCG antes da anestesia',[199,102,8]);}
@@ -1424,21 +1468,21 @@ function gerarPDF(dados){
   ];
   const halfCW=(cW-6)/2;
   for(let ci=0;ci<checkItems.length;ci+=2){
-    guard(22);
-    if(ci%4===0){doc.setFillColor(...rowBg);doc.rect(mH,y,cW,20,'F');}
+    guard(32);
+    if(ci%4===0){doc.setFillColor(...rowBg);doc.rect(mH,y,cW,30,'F');}
     // checkbox esquerda
     doc.setDrawColor(...green);doc.setLineWidth(0.8);doc.rect(mH+10,y+4,11,11);
-    doc.setFontSize(9);doc.setFont(undefined,'bold');doc.setTextColor(50,62,89);doc.text(checkItems[ci][0],mH+26,y+13);
-    doc.setFont(undefined,'normal');doc.setTextColor(...gray);doc.text(checkItems[ci][1],mH+26+doc.getTextWidth(checkItems[ci][0])+3,y+13);
+    doc.setFontSize(9);doc.setFont(undefined,'bold');doc.setTextColor(50,62,89);doc.text(checkItems[ci][0],mH+26,y+9);
+    doc.setFont(undefined,'normal');doc.setFontSize(8);doc.setTextColor(...gray);doc.text(checkItems[ci][1],mH+26,y+18,{maxWidth:halfCW-20});
     // checkbox direita (se existir)
     if(ci+1<checkItems.length){
       const rx=mH+halfCW+6;
       doc.setDrawColor(...green);doc.rect(rx,y+4,11,11);
-      doc.setFont(undefined,'bold');doc.setTextColor(50,62,89);doc.text(checkItems[ci+1][0],rx+16,y+13);
-      doc.setFont(undefined,'normal');doc.setTextColor(...gray);doc.text(checkItems[ci+1][1],rx+16+doc.getTextWidth(checkItems[ci+1][0])+3,y+13);
+      doc.setFont(undefined,'bold');doc.setFontSize(9);doc.setTextColor(50,62,89);doc.text(checkItems[ci+1][0],rx+16,y+9);
+      doc.setFont(undefined,'normal');doc.setFontSize(8);doc.setTextColor(...gray);doc.text(checkItems[ci+1][1],rx+16,y+18,{maxWidth:halfCW-20});
     }
-    doc.setDrawColor(...border);doc.setLineWidth(0.3);doc.line(mH+6,y+20,mH+cW-6,y+20);
-    y+=20;
+    doc.setDrawColor(...border);doc.setLineWidth(0.3);doc.line(mH+6,y+28,mH+cW-6,y+28);
+    y+=30;
   }
   y+=10;
   // Notas clínicas
@@ -1486,7 +1530,8 @@ async function submitForm(){
     for(let i=0;i<arquivos.length;i++){try{const arq=arquivos[i],nome=arq.nome.replace(/[/\s]/g,'_'),ref=storage.ref(`${pasta}/documentos/${i+1}_${nome}`),tipo=arq.tipo==='imagem'?'image/jpeg':arq.tipo==='pdf'?'application/pdf':'application/octet-stream';await ref.put(new Blob([arq.dados],{type:tipo}));const url=await ref.getDownloadURL();documentosURLs.push(url);}catch(e){console.warn('Doc upload failed:',e);}}
     showLoading('Salvando ficha...');
     const imc=calcIMC(),nasc=parseBRDate(dados.dataNascimentoTexto),idade=nasc?calcAge(nasc):0;
-    const fichaDoc={id:fichaId,pacienteNome:dados.nomeCompleto,pacienteSexo:dados.sexo,pacienteIdade:nasc?`${idade} anos`:'',pacienteIdadeAnos:nasc?idade:0,pacientePeso:dados.peso,pacienteAltura:dados.altura,procedimentoCategoria:dados.procedimentoCategoria,procedimentoNome:dados.procedimentoNome,condicoesCount:condicoes.size,medicamentosCount:dados.usaMed?medicamentos.length:0,imc:imc?imc.texto:'',imcClassificacao:imc?imc.cl:'',ufCRM:dados.ufMedico,numeroCRM:dados.crmMedico,crmCompleto,codigoInstituicao:dados.codigoInstituicao||'',dataCriacao:firebase.firestore.FieldValue.serverTimestamp(),pdfURL,dosePdfURL:'',documentosURLs,temAlergias:dados.alergiaMed||dados.alergiaAlim,alergiaLatex:dados.alergiaLatex,possivelGravidez:dados.possivelGravidez,arquivada:false,dataCirurgiaConhecida:dados.dataCirurgKnown,dataCirurgia:(dados.dataCirurgKnown&&dados.dataCirurgiaTexto)?firebase.firestore.Timestamp.fromDate(parseBRDate(dados.dataCirurgiaTexto)||new Date()):null,dadosCompletos:buildDadosCompletos(dados)};
+    const fichaDoc={id:fichaId,pacienteNome:dados.nomeCompleto,pacienteSexo:dados.sexo,pacienteIdade:nasc?`${idade} anos`:'',pacienteIdadeAnos:nasc?idade:0,pacientePeso:dados.peso,pacienteAltura:dados.altura,procedimentoCategoria:dados.procedimentoCategoria,procedimentoNome:dados.procedimentoNome,condicoesCount:condicoes.size,medicamentosCount:dados.usaMed?medicamentos.length:0,imc:imc?imc.texto:'',imcClassificacao:imc?imc.cl:'',ufCRM:dados.ufMedico,numeroCRM:dados.crmMedico,crmCompleto,codigoInstituicao:dados.codigoInstituicao||'',dataCriacao:firebase.firestore.FieldValue.serverTimestamp(),pdfURL,dosePdfURL:'', // Intentionally empty: dose PDFs are generated only by the iOS app, web form has no dose calculator
+documentosURLs,temAlergias:dados.alergiaMed||dados.alergiaAlim,alergiaLatex:dados.alergiaLatex,possivelGravidez:dados.possivelGravidez,arquivada:false,dataCirurgiaConhecida:dados.dataCirurgKnown,dataCirurgia:(dados.dataCirurgKnown&&dados.dataCirurgiaTexto)?firebase.firestore.Timestamp.fromDate(parseBRDate(dados.dataCirurgiaTexto)||new Date()):null,dadosCompletos:buildDadosCompletos(dados)};
     await db.collection('fichas_preanestesicas').doc(fichaId).set(fichaDoc);
     hideLoading();showSuccess(crmCompleto,dados.nomeCompleto);
   }catch(err){hideLoading();console.error(err);alert('Erro ao enviar ficha: '+err.message+'\n\nVerifique sua conexão e tente novamente.');}
@@ -1513,7 +1558,7 @@ function val(id){return document.getElementById(id)?.value?.trim()||'';}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function maskDate(v){const n=v.replace(/\D/g,'').slice(0,8);if(n.length<=2)return n;if(n.length<=4)return n.slice(0,2)+'/'+n.slice(2);return n.slice(0,2)+'/'+n.slice(2,4)+'/'+n.slice(4);}
 function maskPhone(v){const n=v.replace(/\D/g,'').slice(0,11);if(n.length<=2)return n.length?'('+n:'';if(n.length<=7)return'('+n.slice(0,2)+') '+n.slice(2);return'('+n.slice(0,2)+') '+n.slice(2,7)+'-'+n.slice(7);}
-function parseBRDate(s){if(!s||s.length!==10)return null;const[d,m,y]=s.split('/').map(Number);if(!d||!m||!y)return null;const date=new Date(y,m-1,d);return isNaN(date.getTime())?null:date;}
+function parseBRDate(s){if(!s||s.length!==10)return null;const[d,m,y]=s.split('/').map(Number);if(!d||!m||!y)return null;const date=new Date(y,m-1,d);if(isNaN(date.getTime()))return null;if(date.getDate()!==d||date.getMonth()!==m-1)return null;return date;}
 function calcAge(date){const hoje=new Date();let a=hoje.getFullYear()-date.getFullYear();const dm=hoje.getMonth()-date.getMonth();if(dm<0||(dm===0&&hoje.getDate()<date.getDate()))a--;return a;}
 function formatDate(d){return d.toLocaleDateString('pt-BR');}
 function formatTime(d){return d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}
